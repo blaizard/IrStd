@@ -1,0 +1,8 @@
+.make/
+Makefile
+Makefile.old
+*.o
+*.d
+build/
+dist/
+*/dist/
