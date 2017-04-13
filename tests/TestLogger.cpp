@@ -54,7 +54,7 @@ TEST_F(LoggerTest, testSimple) {
 
 static void threadLogSync(const size_t id, IrStd::Logger& logger)
 {
-	size_t loop = 100;
+	size_t loop = 50;
 	while (loop--)
 	{
 		*logger.entry() << "[START] This is thread #" << id << " [END]";
@@ -73,5 +73,16 @@ TEST_F(LoggerTest, testThreadSync) {
 		t[i].join();
 	}
 
-	ASSERT_TRUE(validateOutput(getLoggerStr().c_str(), "^\\[START\\] This is thread #[0-9]+ \\[END\\]"));
+	// Expect success
+	{
+		ASSERT_TRUE(validateOutput(getLoggerStr().c_str(), "(\\[START\\] This is thread #[0-9]+ \\[END\\]" IRSTD_TEST_REGEX_EOL ")+",
+				RegexMatch::MATCH_ALL));
+	}
+
+	// Expect failure
+	{
+		*getLogger().entry() << "This should make the test fail";
+		ASSERT_TRUE(validateOutput(getLoggerStr().c_str(), "(\\[START\\] This is thread #[0-9]+ \\[END\\]" IRSTD_TEST_REGEX_EOL ")+",
+				RegexMatch::MATCH_ALL, /*expectSuccess*/false));
+	}
 }

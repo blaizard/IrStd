@@ -28,7 +28,7 @@ namespace testing
 }
 
 IrStd::Test::Test()
-		: m_cout(std::cout)
+		: m_cout(std::cerr)
 {
 }
 
@@ -50,18 +50,19 @@ void IrStd::Test::testPrint(const char* const output)
 	::testing::internal::ColoredPrintf(testing::internal::COLOR_YELLOW, "%s\n", output);
 }
 
-bool IrStd::Test::validateOutput(const char* const output, const char* const regExpr, const bool expectSuccess)
+bool IrStd::Test::validateOutput(const char* const output, const char* const regexStr, const RegexMatch mode, const bool expectSuccess)
 {
-	const std::regex re(regExpr);
+	const std::regex re(regexStr);
 	bool regExprMatch = true;
 
-	if (!std::regex_search(output, re))
+	if ((mode == RegexMatch::MATCH_ANY && !std::regex_search(output, re))
+			|| (mode == RegexMatch::MATCH_ALL && !std::regex_match(output, re)))
 	{
 		regExprMatch = false;
 	}
 
 	std::stringstream header;
-	header << "Regular expression: '" << regExpr << "'";
+	header << "Regular expression: '" << regexStr << "'";
 
 	return validateCondition(regExprMatch, header.str().c_str(), output, expectSuccess);
 }

@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+#define IRSTD_TEST_REGEX_EOL "\\r?\\n"
+
 namespace IrStd
 {
 	class Test : public ::testing::Test
@@ -23,20 +25,31 @@ namespace IrStd
 		}
 
 		void testPrint(const char* const output);
+
+
+		enum class RegexMatch
+		{
+			MATCH_ANY,
+			MATCH_ALL
+		};
 		/**
 		 * \brief Validate the standard output of the test
 		 *
 		 * \param output The string output of the test
-		 * \param regExpr Regular expression to match the output
+		 * \param regexStr Regular expression to match the output
 		 * \param expectSuccess Whether or not a successful analyzes of the output is expected
 		 *
 		 * \return true if the analyze succeed, false otherwise.
 		 */
-		bool validateOutput(const std::string& output, const char* const regExpr, const bool expectSuccess = true)
+		bool validateOutput(const std::string& output, const char* const regexStr, const bool expectSuccess)
 		{
-			return validateOutput(output.c_str(), regExpr, expectSuccess);
+			return validateOutput(output.c_str(), regexStr, RegexMatch::MATCH_ANY, expectSuccess);
 		}
-		bool validateOutput(const char* const output, const char* const regExpr, const bool expectSuccess = true);
+		bool validateOutput(const std::string& output, const char* const regexStr, const RegexMatch mode, const bool expectSuccess = true)
+		{
+			return validateOutput(output.c_str(), regexStr, mode, expectSuccess);
+		}
+		bool validateOutput(const char* const output, const char* const regexStr, const RegexMatch mode = RegexMatch::MATCH_ANY, const bool expectSuccess = true);
 
 	private:
 		std::ostream& m_cout;
