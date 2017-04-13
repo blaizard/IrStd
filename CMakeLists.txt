@@ -1,4 +1,5 @@
-add_subdirectory(test)
+add_subdirectory(Test)
+add_subdirectory(tests)
 
 set(irstd_sources
 	Exception/Exception.cpp

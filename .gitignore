@@ -1,6 +1,7 @@
 .make/
 Makefile
 Makefile.old
+config.mk
 *.o
 *.d
 build/

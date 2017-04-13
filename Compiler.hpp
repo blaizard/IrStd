@@ -9,7 +9,9 @@
 #define _IRSTD_IS_COMPILER_GCC0() _IRSTD_IS_COMPILER_GCC3(0, 0, 0)
 #define _IRSTD_IS_COMPILER_GCC1(x) _IRSTD_IS_COMPILER_GCC3(x, 0, 0)
 #define _IRSTD_IS_COMPILER_GCC2(x, y) _IRSTD_IS_COMPILER_GCC3(x, y, 0)
-#define _IRSTD_IS_COMPILER_GCC3(x, y, z) (defined(__GNUC__) && (__GNUC__ >= x && (__GNUC_MINOR__ >= y && (__GNUC_PATCHLEVEL__ >= z))))
+#define _IRSTD_IS_COMPILER_GCC3(x, y, z) (defined(__GNUC__) && (__GNUC__ > x \
+		|| (__GNUC__ == x && (__GNUC_MINOR__ > y \
+		|| ( __GNUC_MINOR__ == y && (__GNUC_PATCHLEVEL__ >= z))))))
 
 #if IRSTD_IS_COMPILER(GCC)
 	#define IRSTD_COMPILER_NAME "GCC"

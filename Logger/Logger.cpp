@@ -85,7 +85,7 @@ void IrStd::Logger::FormatDefault::header(
 
 		strcpy(buffer, &info.file[startFile]);
 		buffer[newlenFile] = ':';
-		sprintf(&buffer[newlenFile + 1], "%d", info.line);
+		sprintf(&buffer[newlenFile + 1], "%i", static_cast<int>(info.line));
 
 		out << " " << std::setw(20) << buffer << "\t";
 	}

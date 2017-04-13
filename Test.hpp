@@ -2,13 +2,13 @@
 
 #include <iostream>
 
-namespace Test
+namespace IrStd
 {
-	class Base : public ::testing::Test
+	class Test : public ::testing::Test
 	{
 	protected:
-		Base();
-		virtual ~Base();
+		Test();
+		virtual ~Test();
 
 		virtual void SetUp();
 		virtual void TearDown();
