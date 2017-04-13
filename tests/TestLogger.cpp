@@ -73,16 +73,15 @@ TEST_F(LoggerTest, testThreadSync) {
 		t[i].join();
 	}
 
+	const char* const regexMatch = "(\\[START\\] This is thread #[0-9]+ \\[END\\]" IRSTD_TEST_REGEX_EOL ")+";
 	// Expect success
 	{
-		ASSERT_TRUE(validateOutput(getLoggerStr().c_str(), "(\\[START\\] This is thread #[0-9]+ \\[END\\]" IRSTD_TEST_REGEX_EOL ")+",
-				RegexMatch::MATCH_ALL));
+		ASSERT_TRUE(validateOutput(getLoggerStr().c_str(), regexMatch, RegexMatch::MATCH_ALL));
 	}
 
 	// Expect failure
 	{
 		*getLogger().entry() << "This should make the test fail";
-		ASSERT_TRUE(validateOutput(getLoggerStr().c_str(), "(\\[START\\] This is thread #[0-9]+ \\[END\\]" IRSTD_TEST_REGEX_EOL ")+",
-				RegexMatch::MATCH_ALL, /*expectSuccess*/false));
+		ASSERT_TRUE(validateOutput(getLoggerStr().c_str(), regexMatch, RegexMatch::MATCH_ALL, /*expectSuccess*/false));
 	}
 }

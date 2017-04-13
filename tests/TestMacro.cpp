@@ -1,6 +1,8 @@
 #include "../Test.hpp"
 #include "../Utils.hpp"
 
+#define TEST_DUMMY "dummy"
+
 #define TEST_MACRO_SUM0() 0
 #define TEST_MACRO_SUM1(a) a
 #define TEST_MACRO_SUM2(a, b) a + b
@@ -25,6 +27,13 @@ TEST_F(MacroTest, testIsEmpty) {
 	ASSERT_TRUE(IRSTD_IS_EMPTY_X(78, -1, a) == -1);
 }
 
+TEST_F(MacroTest, testQuote) {
+	// IRSTD_QUOTE
+	ASSERT_TRUE(IRSTD_QUOTE() == "");
+	ASSERT_TRUE(IRSTD_QUOTE(dummy) == "dummy");
+	ASSERT_TRUE(IRSTD_QUOTE("dummy") == "\"dummy\"");
+}
+
 TEST_F(MacroTest, testNArgs) {
 	// IRSTD_NARGS
 	ASSERT_TRUE(IRSTD_NARGS() == 0);
@@ -40,4 +49,11 @@ TEST_F(MacroTest, testGetMacro) {
 	ASSERT_TRUE(TEST_MACRO_SUM(1, 2) == 3);
 	ASSERT_TRUE(TEST_MACRO_SUM(1) == 1);
 	ASSERT_TRUE(TEST_MACRO_SUM() == 0);
+}
+
+TEST_F(MacroTest, testPaste) {
+	// IRSTD_PASTE
+	ASSERT_TRUE(IRSTD_PASTE(1, 2) == 12);
+	ASSERT_TRUE(IRSTD_PASTE(1, 2, 3) == 123);
+	ASSERT_TRUE(IRSTD_PASTE(TEST_, DUMMY) == "dummy");
 }

@@ -50,11 +50,14 @@
 #define _IRSTD_GET_MACRO(macro, nbArgs) __IRSTD_GET_MACRO(macro, nbArgs)
 #define __IRSTD_GET_MACRO(macro, nbArgs) macro##nbArgs
 
+/**
+ * \brief Paste macro names together
+ */
 #define IRSTD_PASTE(...) IRSTD_GET_MACRO(_IRSTD_PASTE, __VA_ARGS__)(__VA_ARGS__)
-#define _IRSTD_PASTE2(x, y) x ## y
-#define _IRSTD_PASTE3(x, ...) x ## IRSTD_PASTE2(__VA_ARGS__)
-#define _IRSTD_PASTE4(x, ...) x ## IRSTD_PASTE3(__VA_ARGS__)
-#define _IRSTD_PASTE5(x, ...) x ## IRSTD_PASTE4(__VA_ARGS__)
+#define _IRSTD_PASTE2(a, b) a ## b
+#define _IRSTD_PASTE3(a, b, c) a ## b ## c
+#define _IRSTD_PASTE4(a, b, c, d) a ## b ## c ## d
+#define _IRSTD_PASTE5(a, b, c, d, e) a ## b ## c ## d ## e
 
 namespace IrStd
 {
