@@ -5,7 +5,7 @@
 #include <thread>
 
 #include "../Logger.hpp"
-#include "LoggerStreambuf.hpp"
+#include "../Exception.hpp"
 #include "../Scope.hpp"
 
 IRSTD_TOPIC_REGISTER(None, "");
@@ -98,8 +98,6 @@ void IrStd::Logger::FormatDefault::tail(std::ostream& out) const
 
 // ---- IrStd::Logger::OutputStream -------------------------------------------
 
-static std::mutex mtx;
-
 IrStd::Logger::OutputStream::OutputStream(
 		const StreamList& streamList,
 		const Info& info)
@@ -117,6 +115,8 @@ IrStd::Logger::OutputStream::OutputStream(const OutputStream&& os)
 
 IrStd::Logger::OutputStream::~OutputStream()
 {
+	static std::mutex mtx;
+
 	// This prevents everything inside this scope to output trace
 	IRSTD_SCOPE_THREAD(scope);
 	if (scope.isActivator())

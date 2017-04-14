@@ -8,6 +8,9 @@ namespace IrStd
 {
 	class Test : public ::testing::Test
 	{
+	public:
+		static void print(const char* const output);
+
 	protected:
 		Test();
 		virtual ~Test();
@@ -23,9 +26,6 @@ namespace IrStd
 		{
 			return m_cout;
 		}
-
-		void testPrint(const char* const output);
-
 
 		enum class RegexMatch
 		{

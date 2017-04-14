@@ -3,12 +3,11 @@
 
 #define TEST_DUMMY "dummy"
 
+#define TEST_MACRO_SUM(...) IRSTD_GET_MACRO(TEST_MACRO_SUM, __VA_ARGS__)(__VA_ARGS__)
 #define TEST_MACRO_SUM0() 0
 #define TEST_MACRO_SUM1(a) a
 #define TEST_MACRO_SUM2(a, b) a + b
 #define TEST_MACRO_SUM3(a, b, c) a + b + c
-
-#define TEST_MACRO_SUM(...) IRSTD_GET_MACRO(TEST_MACRO_SUM, __VA_ARGS__)(__VA_ARGS__)
 
 class MacroTest : public IrStd::Test
 {

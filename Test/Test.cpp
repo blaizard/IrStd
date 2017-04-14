@@ -9,7 +9,7 @@
 
 #if ! IRSTD_IS_COMPILER(GCC, 4, 9)
 	#pragma message "Compiler: " IRSTD_COMPILER_STRING
-	#error Minimum GCC version supported is 4.9
+	#error Minimum GCC version supported: 4.9
 #endif
 
 namespace testing
@@ -44,7 +44,7 @@ void IrStd::Test::TearDown()
 {
 }
 
-void IrStd::Test::testPrint(const char* const output)
+void IrStd::Test::print(const char* const output)
 {
 	::testing::internal::ColoredPrintf(testing::internal::COLOR_GREEN, "[          ] ");
 	::testing::internal::ColoredPrintf(testing::internal::COLOR_YELLOW, "%s\n", output);

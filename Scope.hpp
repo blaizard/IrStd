@@ -35,6 +35,15 @@
 		} \
 	}
 
+#define IRSTD_SCOPE_USE(id) _IRSTD_SCOPE_USE(, id)
+#define IRSTD_SCOPE_THREAD_USE(id) _IRSTD_SCOPE_USE(Thread, id)
+
+#define _IRSTD_SCOPE_USE(prefix, id) \
+	namespace IrStd \
+	{ \
+		IrStd::Scope::Flag& _IRSTD_SCOPE_NAME(prefix, id)() noexcept; \
+	}
+
 /**
  * \brief Create a scope
  *
@@ -60,13 +69,9 @@
 	IrStd::Scope scope(scopeFlag##prefix);
 
 #define _IRSTD_SCOPE2(attr, prefix, scope, id) \
-	namespace IrStd \
-	{ \
-		IrStd::Scope::Flag& _IRSTD_SCOPE_NAME(prefix, id)() noexcept; \
-	} \
-	IrStd::Scope scope(_IRSTD_SCOPE_NAME(prefix, id)());
+	IrStd::Scope scope(IrStd::_IRSTD_SCOPE_NAME(prefix, id)());
 
-#define _IRSTD_SCOPE_NAME(prefix, id) __scope ## prefix ## Register ## id
+#define _IRSTD_SCOPE_NAME(prefix, id) IRSTD_PASTE(__scope, prefix, id)
 
 namespace IrStd
 {

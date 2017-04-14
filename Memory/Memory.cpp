@@ -9,6 +9,7 @@
 #include "../Scope.hpp"
 
 IRSTD_TOPIC_REGISTER(IrStdMemory, "IrStdMemory");
+IRSTD_SCOPE_THREAD_REGISTER(IrStdMemoryNoTrace);
 
 // ----------------------------------------------------------------------------
 
@@ -75,7 +76,7 @@ void* IrStd::Memory::newImpl(size_t size) noexcept
 	}
 
 	{
-		IRSTD_SCOPE_THREAD(scope);
+		IRSTD_SCOPE_THREAD(scope, IrStdMemoryNoTrace);
 		if (scope.isActivator())
 		{
 			IRSTD_LOG_TRACE(IrStdMemory, "Allocated (size=" << std::setw(10) << size
@@ -107,7 +108,7 @@ void IrStd::Memory::deleteImpl(void* ptr) noexcept
 	}
 
 	{
-		IRSTD_SCOPE_THREAD(scope);
+		IRSTD_SCOPE_THREAD(scope, IrStdMemoryNoTrace);
 		if (scope.isActivator())
 		{
 			IRSTD_LOG_TRACE(IrStdMemory, "Free      (size=" << std::setw(10) << size
