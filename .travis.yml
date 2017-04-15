@@ -8,12 +8,11 @@ compiler:
 install: true
 
 before_script:
-  - cmake CMakeLists.txt
-
-script:
   - mkdir build
   - cd build
   - cmake ..
+
+script:
   - make
   - ./tests/tests
 
