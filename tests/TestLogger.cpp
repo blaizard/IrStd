@@ -32,32 +32,32 @@ protected:
 	IrStd::Logger m_logger;
 };
 
-// ---- LoggerTest::testSimple --------------------------------------
+// ---- LoggerTest::testSimple ------------------------------------------------
 
 TEST_F(LoggerTest, testSimple) {
 	// Simple string output
 	{
 		loggerClear();
-		*getLogger().entry() << "test1";
+		IRSTD_LOG_X(getLogger(), "test1");
 		ASSERT_TRUE(getLoggerStr() == "test1\n") << "outStream.str() = \"" << getLoggerStr() << "\"";
 	}
 
 	// Composed string output
 	{
 		loggerClear();
-		*getLogger().entry() << "test" << 1.5 << "another" << -8;
+		IRSTD_LOG_X(getLogger(), "test" << 1.5 << "another" << -8);
 		ASSERT_TRUE(getLoggerStr() == "test1.5another-8\n") << "outStream.str() = \"" << getLoggerStr() << "\"";
 	}
 }
 
-// ---- LoggerTest::testThreadSync ----------------------------------
+// ---- LoggerTest::testThreadSync --------------------------------------------
 
 static void threadLogSync(const size_t id, IrStd::Logger& logger)
 {
 	size_t loop = 50;
 	while (loop--)
 	{
-		*logger.entry() << "[START] This is thread #" << id << " [END]";
+		IRSTD_LOG_X(logger, "[START] This is thread #" << id << " [END]");
 	}
 }
 
@@ -81,7 +81,13 @@ TEST_F(LoggerTest, testThreadSync) {
 
 	// Expect failure
 	{
-		*getLogger().entry() << "This should make the test fail";
+		IRSTD_LOG_X(getLogger(), "This should make the test fail");
 		ASSERT_TRUE(validateOutput(getLoggerStr().c_str(), regexMatch, RegexMatch::MATCH_ALL, /*expectSuccess*/false));
 	}
+}
+
+// ---- LoggerTest::testMultiStream -------------------------------------------
+
+TEST_F(LoggerTest, testMultiStream) {
+
 }
