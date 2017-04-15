@@ -1,16 +1,19 @@
-sudo: required
+sudo: false
 
 language: cpp
 
 compiler:
   - gcc
 
-before_install:
-  - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-  - sudo apt-get update -qq
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - gcc-4.9
+      - g++-4.9
 
 install:
-  - sudo apt-get install -qq g++-4.9
   - export CXX="g++-4.9"
 
 before_script:

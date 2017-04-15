@@ -1,5 +1,4 @@
-#include "gtest/gtest.h"
-
+#include <gtest/gtest.h>
 #include <iostream>
 
 #define IRSTD_TEST_REGEX_EOL "\\r?\\n"

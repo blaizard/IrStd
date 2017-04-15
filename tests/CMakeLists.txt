@@ -4,6 +4,7 @@ set(test_sources
 	TestLogger.cpp
 )
 add_executable(tests ${test_sources})
-target_link_libraries(tests irstdgtest irstd)
+target_link_libraries(tests irstdgtest irstd pthread)
 
-#add_test(runUnitTests runUnitTests)
+enable_testing()
+add_test(tests tests)
