@@ -4,6 +4,8 @@ set(test_sources
 	TestLogger.cpp
 )
 
+include_directories(..)
+
 add_executable(tests ${test_sources})
 target_link_libraries(tests irstdgtest irstd pthread)
 
