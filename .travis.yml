@@ -1,14 +1,21 @@
+sudo: false
+
 language: cpp
 
 compiler:
-    - gcc
+  - gcc
 
-install:
-    # Load gtest library
+install: true
 
 before_script:
-    - cmake CMakeLists.txt
+  - cmake CMakeLists.txt
 
 script:
-    - $CXX --version
-    - make
+  - mkdir build
+  - cd build
+  - cmake ..
+  - make
+  - ./tests/tests
+
+notifications:
+  email: false
