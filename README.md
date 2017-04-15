@@ -6,9 +6,14 @@ IrStd adds few usefull thread-friendly features to the standard library.
 
 ## Features
 
+* Macro
 * Logger
 * Memory
 * Scope
+
+## Macro
+
+Adds usefull macros to the framework.
 
 ## Logger
 
