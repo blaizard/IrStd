@@ -13,24 +13,18 @@ addons:
       - gcc-4.9
       - g++-4.9
 
-before_install:
-  - pip install --user cpp-coveralls
-
 install:
   - export CXX="g++-4.9"
 
 before_script:
   - mkdir build
   - cd build
-  - cmake -DCOVERALLS=ON -DCMAKE_BUILD_TYPE=Debug ..
+  - cmake ..
 
 script:
   - ${CXX} --version
   - cmake --build .
   - ./tests/tests
-
-after_success:
-  - cmake --build . --target coveralls
 
 notifications:
   email: false
