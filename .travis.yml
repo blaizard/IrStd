@@ -1,0 +1,14 @@
+language: cpp
+
+compiler:
+    - gcc
+
+install:
+    # Load gtest library
+
+before_script:
+    - cmake CMakeLists.txt
+
+script:
+    - $CXX --version
+    - make
