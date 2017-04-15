@@ -1,5 +1,8 @@
 # GTest
 add_subdirectory(googletest)
+include_directories(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
+
+set(IRSTD_INCLUDE "${IRSTD_INCLUDE} ${gtest_SOURCE_DIR}/include")
 
 # Sources
 set(gtest_sources
