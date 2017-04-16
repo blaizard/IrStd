@@ -9,6 +9,7 @@ class LoggerTest : public IrStd::Test
 protected:
 	void SetUp()
 	{
+		m_loggerStream.str("");
 		IrStd::Logger::Stream stream{m_loggerStream, &IrStd::Logger::FormatRaw::getInstance()};
 		m_logger = IrStd::Logger{stream};
 	}
@@ -38,15 +39,15 @@ TEST_F(LoggerTest, testSimple) {
 	// Simple string output
 	{
 		loggerClear();
-		IRSTD_LOG_X(getLogger(), "test1");
-		ASSERT_TRUE(getLoggerStr() == "test1\n") << "outStream.str() = \"" << getLoggerStr() << "\"";
+		IRSTD_LOG_X(getLogger(), "test");
+		ASSERT_TRUE(getLoggerStr() == "test\n") << "getLoggerStr()=\"" << getLoggerStr() << "\"";
 	}
 
 	// Composed string output
 	{
 		loggerClear();
 		IRSTD_LOG_X(getLogger(), "test" << 1.5 << "another" << -8);
-		ASSERT_TRUE(getLoggerStr() == "test1.5another-8\n") << "outStream.str() = \"" << getLoggerStr() << "\"";
+		ASSERT_TRUE(getLoggerStr() == "test1.5another-8\n") << "getLoggerStr()=\"" << getLoggerStr() << "\"";
 	}
 }
 
@@ -89,5 +90,20 @@ TEST_F(LoggerTest, testThreadSync) {
 // ---- LoggerTest::testMultiStream -------------------------------------------
 
 TEST_F(LoggerTest, testMultiStream) {
+	std::stringstream stream;
+	// Add a new stream to the logger
+	getLogger().addStream({stream, &IrStd::Logger::FormatRaw::getInstance()});
 
+	// Double stream output
+	{
+		IRSTD_LOG_X(getLogger(), "test");
+		ASSERT_TRUE(getLoggerStr() == "test\n") << "getLoggerStr()=\"" << getLoggerStr() << "\", stream.str()=\"" << stream.str() << "\"";
+		ASSERT_TRUE(stream.str() == "test\n") << "stream.str()=\"" << stream.str() << "\", getLoggerStr()=\"" << getLoggerStr() << "\"";
+	}
+}
+
+// ---- LoggerTest::testFilter ------------------------------------------------
+
+TEST_F(LoggerTest, testFilter) {
+	
 }

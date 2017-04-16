@@ -51,7 +51,8 @@ IRSTD_SCOPE_THREAD_USE(IrStdMemoryNoTrace);
 		IRSTD_SCOPE_THREAD(scope, IrStdMemoryNoTrace); \
 		timeval t; \
 		gettimeofday(&t, 0); \
-		*(logger).entry({level, IrStd::Topic::topic, __LINE__, (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__), __func__, t}) << message; \
+		*(logger).entry({level, IrStd::Topic::topic, __LINE__, (strrchr(__FILE__, '/') ? \
+				strrchr(__FILE__, '/') + 1 : __FILE__), __func__, t}) << message; \
 	}
 
 #define IRSTD_LOGGER_DEFINE_LEVEL(verbosity, id) (static_cast<uint32_t>(verbosity << 16) | static_cast<uint16_t>(id))
@@ -191,8 +192,6 @@ namespace IrStd
 
 		typedef std::vector<Stream, AllocatorObj<Stream, AllocatorRaw>> StreamList;
 
-		StreamList m_streamList;
-
 		class OutputStream : public AllocatorImpl<AllocatorRaw>
 		{
 		public:
@@ -216,10 +215,7 @@ namespace IrStd
 			template<typename T>
 			OutputStream& operator<<(const T& in)
 			{
-				for (auto& stream : m_streamList)
-				{
-					m_bufferStream << in;
-				}
+				m_bufferStream << in;
 				return *this;
 			}
 
@@ -241,7 +237,7 @@ namespace IrStd
 		}
 		explicit Logger(const Stream& stream)
 		{
-			m_streamList.push_back(stream);
+			addStream(stream);
 		}
 
 		/**
@@ -256,11 +252,18 @@ namespace IrStd
 			m_streamList.empty();
 			for (const auto& stream : logger.m_streamList)
 			{
-				m_streamList.push_back(Stream{stream});
+				addStream(stream);
 			}
 		}
 
+		/**
+		 * Add a stream to the logger
+		 */
+		void addStream(const Stream& stream);
+
 		OutputStreamPtr entry(const Info& info);
-		OutputStreamPtr entry();
+
+	private:
+		StreamList m_streamList;
 	};
 }

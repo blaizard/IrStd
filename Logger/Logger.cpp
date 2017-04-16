@@ -17,19 +17,15 @@ IrStd::Logger::~Logger()
 	// Flush the streams
 }
 
-IrStd::Logger::OutputStreamPtr IrStd::Logger::entry()
-{
-	timeval t;
-	gettimeofday(&t, 0);
-	const Info info{Level::Info, IrStd::Topic::None, 0, "", "", t};
-	auto pOutStream = entry(info);
-	return std::move(pOutStream);
-}
-
 IrStd::Logger::OutputStreamPtr IrStd::Logger::entry(const Info& info)
 {
 	OutputStreamPtr pOutStream = IrStd::makeUnique<AllocatorRaw, OutputStream>(m_streamList, info);
 	return std::move(pOutStream);
+}
+
+void IrStd::Logger::addStream(const Stream& stream)
+{
+	m_streamList.push_back(stream);
 }
 
 // ---- IrStd::Logger::Format -------------------------------------------------
@@ -123,9 +119,10 @@ IrStd::Logger::OutputStream::~OutputStream()
 	{
 		for (auto& stream : m_streamList)
 		{
+			const std::string& str = m_bufferStream.str();
 			mtx.lock();
 			stream.m_pFormat->header(stream.m_os, m_info);
-			stream.m_os << m_bufferStream.str();
+			stream.m_os << str;
 			stream.m_pFormat->tail(stream.m_os);
 			mtx.unlock();
 		}
