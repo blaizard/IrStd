@@ -8,7 +8,7 @@
 #include "../Logger.hpp"
 #include "../Scope.hpp"
 
-IRSTD_TOPIC_REGISTER(IrStdMemory, "IrStdMemory");
+IRSTD_TOPIC_REGISTER(IrStdMemory);
 IRSTD_SCOPE_THREAD_REGISTER(IrStdMemoryNoTrace);
 
 // ----------------------------------------------------------------------------

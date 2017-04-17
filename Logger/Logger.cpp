@@ -9,6 +9,9 @@
 
 IRSTD_TOPIC_REGISTER(None, "");
 
+
+IRSTD_TOPIC_REGISTER(TEST, "");
+
 // ---- IrStd::Logger ---------------------------------------------------------
 
 IrStd::Logger::Logger(const Stream& stream)
@@ -36,9 +39,14 @@ IrStd::Logger& IrStd::Logger::getDefault()
 	return instance;
 }
 
-IrStd::Logger::OutputStreamPtr IrStd::Logger::entry(Info& info)
+IrStd::Logger::OutputStreamPtr IrStd::Logger::entry(
+		const size_t line,
+		const char* const file,
+		const char* const func,
+		const Level level,
+		const TopicImpl& topic)
 {
-	// Update the timestamp
+	Info info{level, topic, line, file, func};
 	gettimeofday(&info.m_time, 0);
 	OutputStreamPtr pOutStream = IrStd::makeUnique<AllocatorRaw, OutputStream>(m_streamList, info);
 	return std::move(pOutStream);

@@ -13,5 +13,5 @@ file(COPY ${gtest_SOURCE_DIR}/include/gtest
 	DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
 # Build the gtest static library
-add_library(irstdgtest STATIC ${gtest_sources})
+add_library(irstdgtest ${gtest_sources})
 target_link_libraries(irstdgtest gtest)

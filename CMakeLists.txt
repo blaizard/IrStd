@@ -17,4 +17,4 @@ set(irstd_sources
 	Bootstrap/Bootstrap.cpp
 )
 
-add_library(irstd STATIC ${irstd_sources})
+add_library(irstd ${irstd_sources})

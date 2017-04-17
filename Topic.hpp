@@ -9,6 +9,7 @@
 	{ \
 		namespace Topic \
 		{ \
+			extern const IrStd::TopicImpl topic; \
 			const IrStd::TopicImpl topic(str); \
 		} \
 	}
