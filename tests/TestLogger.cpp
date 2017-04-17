@@ -4,6 +4,8 @@
 #include <sstream>
 #include <thread>
 
+IRSTD_TOPIC_REGISTER(TestTopic);
+
 class LoggerTest : public IrStd::Test
 {
 protected:
@@ -102,8 +104,35 @@ TEST_F(LoggerTest, testMultiStream) {
 	}
 }
 
-// ---- LoggerTest::testFilter ------------------------------------------------
+// ---- LoggerTest::testGlobalFilter ------------------------------------------------
 
-TEST_F(LoggerTest, testFilter) {
-	
+TEST_F(LoggerTest, testGlobalFilter) {
+	getLogger().setLevel(IrStd::Logger::Level::Trace);
+	{
+		loggerClear();
+		IRSTD_LOG_TRACE_X(getLogger(), "trace");
+		IRSTD_LOG_INFO_X(getLogger(), "info");
+		IRSTD_LOG_INFO_X(getLogger(), IrStd::Topic::TestTopic, "topic");
+		ASSERT_TRUE(getLoggerStr() == "trace\ninfo\ntopic\n") << "getLoggerStr()=\"" << getLoggerStr() << "\"";
+	}
+
+	// Level
+	getLogger().setLevel(IrStd::Logger::Level::Info);
+	{
+		loggerClear();
+		IRSTD_LOG_TRACE_X(getLogger(), "trace");
+		IRSTD_LOG_INFO_X(getLogger(), "info");
+		IRSTD_LOG_INFO_X(getLogger(), IrStd::Topic::TestTopic, "topic");
+		ASSERT_TRUE(getLoggerStr() == "info\ntopic\n") << "getLoggerStr()=\"" << getLoggerStr() << "\"";
+	}
+
+	// Topic
+	getLogger().addTopic(IrStd::Topic::TestTopic);
+	{
+		loggerClear();
+		IRSTD_LOG_TRACE_X(getLogger(), "trace");
+		IRSTD_LOG_INFO_X(getLogger(), "info");
+		IRSTD_LOG_INFO_X(getLogger(), IrStd::Topic::TestTopic, "topic");
+		ASSERT_TRUE(getLoggerStr() == "topic\n") << "getLoggerStr()=\"" << getLoggerStr() << "\"";
+	}
 }

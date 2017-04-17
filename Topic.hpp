@@ -1,6 +1,10 @@
 #pragma once
 
-#define IRSTD_TOPIC_REGISTER(topic, str) \
+#include "Utils.hpp"
+
+#define IRSTD_TOPIC_REGISTER(...) IRSTD_GET_MACRO(_IRSTD_TOPIC_REGISTER, __VA_ARGS__)(__VA_ARGS__)
+#define _IRSTD_TOPIC_REGISTER1(topic) _IRSTD_TOPIC_REGISTER2(topic, IRSTD_QUOTE(topic))
+#define _IRSTD_TOPIC_REGISTER2(topic, str) \
 	namespace IrStd \
 	{ \
 		namespace Topic \
@@ -17,6 +21,8 @@
 			extern const IrStd::TopicImpl topic; \
 		} \
 	}
+
+#define IRSTD_TOPIC(topic) IrStd::Topic::topic
 
 namespace IrStd
 {

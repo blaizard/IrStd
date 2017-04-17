@@ -60,7 +60,7 @@ void* IrStd::Memory::newImpl(size_t size) noexcept
 
 	if (ptr == nullptr)
 	{
-		IRSTD_LOG_ERROR(IrStdMemory, "Memory allocation failed (size=" << size << ")");
+		IRSTD_LOG_ERROR(IrStd::Topic::IrStdMemory, "Memory allocation failed (size=" << size << ")");
 		return nullptr;
 	}
 
@@ -70,7 +70,7 @@ void* IrStd::Memory::newImpl(size_t size) noexcept
 		m_mutexAlloxMap.lock();
 		const auto ret = m_allocMap.insert(entry);
 		m_mutexAlloxMap.unlock();
-		IRSTD_ASSERT(IrStdMemory, ret.second, "Entry " << static_cast<void*>(ptr) << " already exists");
+		IRSTD_ASSERT(IrStd::Topic::IrStdMemory, ret.second, "Entry " << static_cast<void*>(ptr) << " already exists");
 		m_allocStatCurrent.fetch_add(size);
 		m_allocStatPeak.store(std::max(getStatPeak(), getStatCurrent()));
 	}
@@ -79,7 +79,7 @@ void* IrStd::Memory::newImpl(size_t size) noexcept
 		IRSTD_SCOPE_THREAD(scope, IrStdMemoryNoTrace);
 		if (scope.isActivator())
 		{
-			IRSTD_LOG_TRACE(IrStdMemory, "Allocated (size=" << std::setw(10) << size
+			IRSTD_LOG_TRACE(IrStd::Topic::IrStdMemory, "Allocated (size=" << std::setw(10) << size
 					<< ", ptr=" << std::setw(18) << static_cast<void*>(ptr)
 					<< ", current=" << std::setw(10)  << getStatCurrent()
 					<< ", peak=" << std::setw(10)  << getStatPeak() << ")");
@@ -97,7 +97,7 @@ void IrStd::Memory::deleteImpl(void* ptr) noexcept
 		{
 			m_mutexAlloxMap.lock();
 			const auto it = m_allocMap.find(ptr);
-			IRSTD_ASSERT(IrStdMemory, it != m_allocMap.end(), "Unabe to find ptr " << static_cast<void*>(ptr));
+			IRSTD_ASSERT(IrStd::Topic::IrStdMemory, it != m_allocMap.end(), "Unabe to find ptr " << static_cast<void*>(ptr));
 			size = it->second;
 			m_allocStatCurrent.fetch_sub(it->second);
 			m_allocMap.erase(it);
@@ -111,7 +111,7 @@ void IrStd::Memory::deleteImpl(void* ptr) noexcept
 		IRSTD_SCOPE_THREAD(scope, IrStdMemoryNoTrace);
 		if (scope.isActivator())
 		{
-			IRSTD_LOG_TRACE(IrStdMemory, "Free      (size=" << std::setw(10) << size
+			IRSTD_LOG_TRACE(IrStd::Topic::IrStdMemory, "Free      (size=" << std::setw(10) << size
 					<< ", ptr=" << std::setw(18) << static_cast<void*>(ptr)
 					<< ", current=" << std::setw(10)  << getStatCurrent()
 					<< ", peak=" << std::setw(10) << getStatPeak() << ")");

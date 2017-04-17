@@ -32,6 +32,8 @@ IrStd::Bootstrap::Bootstrap()
 	}
 
 	std::set_terminate(&Bootstrap::onTerminate);
+
+	std::cerr << "Bootstrap loaded" << std::endl;
 }
 
 void IrStd::Bootstrap::onTerminate() noexcept
@@ -56,4 +58,4 @@ void IrStd::Bootstrap::sigHandler(int sig, siginfo_t *info, void *secret)
 }
 
 // Create the boostrap instance
-static volatile IrStd::Bootstrap& bootstrap = IrStd::Bootstrap::getInstance();
+volatile IrStd::Bootstrap& bootstrap = IrStd::Bootstrap::getInstance();
