@@ -28,6 +28,7 @@
 #define _IRSTD_SCOPE_REGISTER(attr, prefix, id) \
 	namespace IrStd \
 	{ \
+		extern IrStd::Scope::Flag& _IRSTD_SCOPE_NAME(prefix, id)() noexcept; \
 		IrStd::Scope::Flag& _IRSTD_SCOPE_NAME(prefix, id)() noexcept \
 		{ \
 			attr IrStd::Scope::Flag scopeFlag = ATOMIC_FLAG_INIT; \
@@ -41,7 +42,7 @@
 #define _IRSTD_SCOPE_USE(prefix, id) \
 	namespace IrStd \
 	{ \
-		IrStd::Scope::Flag& _IRSTD_SCOPE_NAME(prefix, id)() noexcept; \
+		extern IrStd::Scope::Flag& _IRSTD_SCOPE_NAME(prefix, id)() noexcept; \
 	}
 
 /**

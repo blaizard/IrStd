@@ -1,5 +1,5 @@
 #include "../Test.hpp"
-#include "../Utils.hpp"
+#include "../IrStd.hpp"
 
 #define TEST_DUMMY "dummy"
 
@@ -28,9 +28,9 @@ TEST_F(MacroTest, testIsEmpty) {
 
 TEST_F(MacroTest, testQuote) {
 	// IRSTD_QUOTE
-	ASSERT_TRUE(IRSTD_QUOTE() == "");
-	ASSERT_TRUE(IRSTD_QUOTE(dummy) == "dummy");
-	ASSERT_TRUE(IRSTD_QUOTE("dummy") == "\"dummy\"");
+	ASSERT_TRUE(strcmp(IRSTD_QUOTE(), "") == 0);
+	ASSERT_TRUE(strcmp(IRSTD_QUOTE(dummy), "dummy") == 0);
+	ASSERT_TRUE(strcmp(IRSTD_QUOTE("dummy"), "\"dummy\"") == 0);
 }
 
 TEST_F(MacroTest, testNArgs) {
@@ -54,5 +54,5 @@ TEST_F(MacroTest, testPaste) {
 	// IRSTD_PASTE
 	ASSERT_TRUE(IRSTD_PASTE(1, 2) == 12);
 	ASSERT_TRUE(IRSTD_PASTE(1, 2, 3) == 123);
-	ASSERT_TRUE(IRSTD_PASTE(TEST_, DUMMY) == "dummy");
+	ASSERT_TRUE(strcmp(IRSTD_PASTE(TEST_, DUMMY), "dummy") == 0);
 }

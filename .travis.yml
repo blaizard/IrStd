@@ -12,6 +12,7 @@ addons:
     packages:
       - gcc-4.9
       - g++-4.9
+      - libcurl4-openssl-dev
 
 install:
   - export CXX="g++-4.9"

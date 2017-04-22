@@ -9,8 +9,7 @@
 	{ \
 		namespace Topic \
 		{ \
-			extern const IrStd::TopicImpl topic; \
-			const IrStd::TopicImpl topic(str); \
+			extern const IrStd::TopicImpl topic(str); \
 		} \
 	}
 
@@ -34,12 +33,22 @@ namespace IrStd
 	class TopicImpl
 	{
 	public:
+		typedef std::uintptr_t Ref;
+
 		TopicImpl(const char* const str)
 			: m_str(str)
 		{
 		}
 
-		const char* const getStr() const noexcept
+		/**
+		 * Returns a unique reference of the object
+		 */
+		Ref getRef() const noexcept
+		{
+			return reinterpret_cast<Ref>(this);
+		}
+
+		const char* getStr() const noexcept
 		{
 			return m_str;
 		}

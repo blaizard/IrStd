@@ -5,11 +5,11 @@
 
 #include <sstream>
 #include <iostream>
+#include <iomanip>
 #include <regex>
 
-#if ! IRSTD_IS_COMPILER(GCC, 4, 9)
-	#pragma message "Compiler: " IRSTD_COMPILER_STRING
-	#error Minimum GCC version supported: 4.9
+#if IRSTD_IS_COMPILER(GCC) && ! IRSTD_IS_COMPILER(GCC, 4, 9)
+	IRSTD_STATIC_ERROR("Minimum GCC version supported: 4.9, current compiler version: " IRSTD_COMPILER_STRING);
 #endif
 
 namespace testing
@@ -38,6 +38,13 @@ IrStd::Test::~Test()
 
 void IrStd::Test::SetUp()
 {
+	IrStd::Rand::Seed seed = IrStd::Rand::generateSeed();
+	m_rand.setSeed(seed);
+	{
+		std::stringstream stream;
+		stream << "Seed: " << std::dec << std::setw(10) << seed;
+		print(stream.str().c_str());
+	}
 }
 
 void IrStd::Test::TearDown()

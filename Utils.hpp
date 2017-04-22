@@ -109,4 +109,29 @@ namespace IrStd
 	protected:
 		SingletonImpl() = default;
 	};
+
+	/**
+	 * Singleton class pattern with living scope
+	 */
+	template<class T>
+	class SingletonScopeImpl : public SingletonImpl<T>
+	{
+	public:
+		SingletonScopeImpl()
+		{
+			m_isCreated = true;
+		}
+		~SingletonScopeImpl()
+		{
+			m_isCreated = false;
+		}
+		static bool isAlive()
+		{
+			return m_isCreated;
+		}
+	private:
+		static bool m_isCreated;
+	};
+	template <class T>
+	bool SingletonScopeImpl<T>::m_isCreated = false;
 }
