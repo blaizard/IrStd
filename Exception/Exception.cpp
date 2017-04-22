@@ -26,7 +26,7 @@ void IrStd::Exception::callStack(std::ostream& out, const size_t skipFirstNb) no
 	const int nbLevels = ::backtrace(addresses, MAX_STACK_LEVEL);
 	const std::unique_ptr<char*, decltype(&std::free)> symbols(::backtrace_symbols(addresses, nbLevels), &std::free);
 
-	for(size_t level = skipFirstNb; level < nbLevels; ++level)
+	for(int level = static_cast<int>(skipFirstNb); level < nbLevels; ++level)
 	{
 		char* const symbol = symbols.get()[level];
 		char* end = symbol;

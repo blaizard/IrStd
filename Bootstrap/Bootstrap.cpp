@@ -3,6 +3,8 @@
 #include <iostream>
 #include <mutex>
 #include <csignal>
+#include <iomanip>
+#include <thread>
 
 #include <cxxabi.h>
 #include <execinfo.h>
@@ -18,6 +20,10 @@
 
 #include "../Bootstrap.hpp"
 #include "../Exception.hpp"
+#include "../Logger.hpp"
+#include "../Topic.hpp"
+
+IRSTD_TOPIC_REGISTER(IrStdBootstrap, "IrStdBoot");
 
 IrStd::Bootstrap::Bootstrap()
 {
@@ -28,34 +34,133 @@ IrStd::Bootstrap::Bootstrap()
 	// Catch all signals
 	for (const auto& signal : {SIGBUS, SIGSEGV, SIGSYS, SIGUSR1, SIGFPE, SIGILL, SIGHUP, SIGABRT})
 	{
-		sigaction(SIGSEGV, &m_sa, NULL);
+		sigaction(signal, &m_sa, nullptr);
 	}
 
 	std::set_terminate(&Bootstrap::onTerminate);
 
-	std::cerr << "Bootstrap loaded" << std::endl;
+	IRSTD_LOG(IrStd::Topic::IrStdBootstrap, "Bootstrap initialized");
 }
 
 void IrStd::Bootstrap::onTerminate() noexcept
 {
-	if(auto exc = std::current_exception())
+	if (auto exc = std::current_exception())
 	{
-		std::cerr << "Unhandled exception" << std::endl;
+		try
+		{
+			std::rethrow_exception(exc);
+		}
+		catch (const std::exception& e)
+		{
+			std::cerr << "Pending exception: " << e.what() << std::endl;
+		}
 		IrStd::Exception::callStack(std::cerr);
 	}
-//	std::_Exit(EXIT_FAILURE);
 }
 
-void IrStd::Bootstrap::sigHandler(int sig, siginfo_t *info, void *secret)
+const char* IrStd::Bootstrap::getSigDescription(int sig)
 {
-	std::cerr << "Got signal " << std::dec << sig << ", faulty address is "
-			<< std::showbase << std::hex << info->si_addr
-			<< std::endl;
+	const char* description;
+	switch (sig)
+	{
+	case SIGABRT:
+		description = " (SIGABRT: Process abort signal)";
+		break;
+	case SIGALRM:
+		description = " (SIGALRM: Alarm clock)";
+		break;
+	case SIGBUS:
+		description = " (SIGBUS: Access to an undefined portion of a memory object)";
+		break;
+	case SIGCHLD:
+		description = " (SIGCHLD: Child process terminated)";
+		break;
+	case SIGCONT:
+		description = " (SIGCONT: Continue executing, if stopped)";
+		break;
+	case SIGFPE:
+		description = " (SIGFPE: Erroneous arithmetic operation)";
+		break;
+	case SIGHUP:
+		description = " (SIGHUP: Hangup)";
+		break;
+	case SIGILL:
+		description = " (SIGILL: Illegal instruction)";
+		break;
+	case SIGINT:
+		description = " (SIGINT: Terminal interrupt signal)";
+		break;
+	case SIGKILL:
+		description = " (SIGKILL: Kill)";
+		break;
+	case SIGPIPE:
+		description = " (SIGPIPE: Write on a pipe with no one to read it)";
+		break;
+	case SIGQUIT:
+		description = " (SIGQUIT: Terminal quit signal)";
+		break;
+	case SIGSEGV:
+		description = " (SIGSEGV: Invalid memory reference)";
+		break;
+	case SIGSTOP:
+		description = " (SIGSTOP: Stop executing)";
+		break;
+	case SIGTERM:
+		description = " (SIGTERM: Termination signal)";
+		break;
+	case SIGTSTP:
+		description = " (SIGTSTP: Termination stop signal)";
+		break;
+	case SIGTTIN:
+		description = " (SIGTTIN: Background process attempting read)";
+		break;
+	case SIGTTOU:
+		description = " (SIGTTOU: Background process attempting write)";
+		break;
+	case SIGUSR1:
+		description = " (SIGUSR1: User-defined signal 1)";
+		break;
+	case SIGUSR2:
+		description = " (SIGUSR2: User-defined signal 2)";
+		break;
+	case SIGPOLL:
+		description = " (SIGPOLL: Pollable event)";
+		break;
+	case SIGPROF:
+		description = " (SIGPROF: Profiling timer expired)";
+		break;
+	case SIGSYS:
+		description = " (SIGSYS: Bad system call)";
+		break;
+	case SIGTRAP:
+		description = " (SIGTRAP: Trace/breakpoint trap)";
+		break;
+	case SIGURG:
+		description = " (SIGURG: High bandwidth data is available at a socket)";
+		break;
+	case SIGVTALRM:
+		description = " (SIGVTALRM: Virtual timer expired)";
+		break;
+	case SIGXCPU:
+		description = " (SIGXCPU: CPU time limit exceeded)";
+		break;
+	case SIGXFSZ:
+		description = " (SIGXFSZ: File size limit exceeded)";
+		break;
+	default:
+		description = " (Unknown signal description)";
+	}
+	return description;
+}
 
-	IrStd::Exception::callStack(std::cerr, /*skipFirstNb*/3);
+void IrStd::Bootstrap::sigHandler(int sig, siginfo_t* info, void* /*secret*/)
+{
+	const char* const description = getSigDescription(sig);
 
+	std::cerr << "FATAL: Received SIGNAL " << std::dec << sig << description
+			<< ", faulty address is " << std::hex << std::showbase << info->si_addr << std::endl
+			<< "Callstack (threadID=" << std::showbase << std::hex << std::this_thread::get_id() << "):" << std::endl;
+
+	IrStd::Exception::callStack(std::cerr, /*skipFirstNb*/2);
 	std::_Exit(EXIT_FAILURE);
 }
-
-// Create the boostrap instance
-volatile IrStd::Bootstrap& bootstrap = IrStd::Bootstrap::getInstance();

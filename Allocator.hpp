@@ -86,7 +86,11 @@ namespace IrStd
 			return newMemory;
 		}
 
-		void deallocate(pointer p, size_type n = 0)
+		void deallocate(pointer p, size_type /*n*/)
+		{
+			deallocate(p);
+		}
+		void deallocate(pointer p)
 		{
 			A().deallocate(reinterpret_cast<void*>(p));
 		}

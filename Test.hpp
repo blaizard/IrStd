@@ -1,7 +1,13 @@
 #include <iostream>
 
 // Include gtest API
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Waggregate-return"
+#pragma GCC diagnostic ignored "-Werror"
 #include "gtest/gtest.h"
+#pragma GCC diagnostic pop
+
+#include "Rand.hpp"
 
 #define IRSTD_TEST_REGEX_EOL "\\r?\\n"
 
@@ -51,6 +57,8 @@ namespace IrStd
 			return validateOutput(output.c_str(), regexStr, mode, expectSuccess);
 		}
 		bool validateOutput(const char* const output, const char* const regexStr, const RegexMatch mode = RegexMatch::MATCH_ANY, const bool expectSuccess = true);
+
+		Rand m_rand;
 
 	private:
 		std::ostream& m_cout;

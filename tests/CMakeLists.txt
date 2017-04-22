@@ -2,6 +2,7 @@
 set(test_sources
 	TestMacro.cpp
 	TestLogger.cpp
+	TestMemory.cpp
 )
 
 include_directories(..)

@@ -1,4 +1,10 @@
 # GTest
+if (IRSTD_COMPILER_GNU)
+	# Disable some diagnostic
+	add_compile_options(-Wno-switch-default)
+	add_compile_options(-Wno-switch-enum)
+endif()
+
 add_subdirectory(googletest)
 include_directories(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
 
