@@ -2,6 +2,7 @@
 
 #include <string>
 #include <future>
+#include <memory>
 
 namespace IrStd
 {
@@ -20,13 +21,48 @@ namespace IrStd
 		Fetch(std::string& data);
 
 		/**
-		 * Fetch data from an URL
+		 * Fetch data
 		 */
-		std::future<Status> url(const char* const url);
+		virtual std::future<Status> process() = 0;
+		virtual Status processSync();
+
+	protected:
+		std::string& m_data;
+	};
+
+	class FetchUrl : public Fetch
+	{
+	public:
+		FetchUrl(const char* const url, std::string& data)
+				: Fetch(data)
+				, m_url(url)
+		{
+		}
+
+		/**
+		 * Fetch data from a url
+		 */
+		std::future<Status> process();
+		Status processSync();
 
 	private:
-		bool urlSync(const char* const url);
+		const char* const m_url;
+	};
 
-		std::string& m_data;
+
+	class FetchRepeat
+	{
+	public:
+		FetchRepeat(std::shared_ptr<Fetch> pFetch)
+				: m_pFetch(pFetch)
+		{
+		}
+
+		void everyTimeMs(const size_t time);
+
+		bool isData();
+
+	private:
+		std::shared_ptr<Fetch> m_pFetch;
 	};
 }

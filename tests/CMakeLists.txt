@@ -3,6 +3,8 @@ set(test_sources
 	TestMacro.cpp
 	TestLogger.cpp
 	TestMemory.cpp
+	TestJson.cpp
+	TestException.cpp
 )
 
 include_directories(..)

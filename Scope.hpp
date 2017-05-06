@@ -7,42 +7,47 @@
 #include <mutex>
 #include <atomic>
 
+#include "Flag.hpp"
+
 /**
  * \brief Register a global scope with an ID.
  * 
  * The scope is meant to be available globaly and can be referenced by its id.
  *
- * \param id The unique id to be given to this scope.
+ * \param name The unique id to be given to this scope.
  */
-#define IRSTD_SCOPE_REGISTER(id) _IRSTD_SCOPE_REGISTER(static, , id)
+#define IRSTD_SCOPE_REGISTER(name) _IRSTD_SCOPE_REGISTER(static, name)
 
 /**
  * \brief Register a thread local scope with an ID.
  * 
  * The scope is meant to be available globaly and can be referenced by its id.
  *
- * \param id The unique id to be given to this scope.
+ * \param name The unique id to be given to this scope.
  */
-#define IRSTD_SCOPE_THREAD_REGISTER(id) _IRSTD_SCOPE_REGISTER(static thread_local, Thread, id)
+#define IRSTD_SCOPE_THREAD_REGISTER(name) _IRSTD_SCOPE_REGISTER(static thread_local, name)
 
-#define _IRSTD_SCOPE_REGISTER(attr, prefix, id) \
+#define _IRSTD_SCOPE_REGISTER(attr, name) \
 	namespace IrStd \
 	{ \
-		extern IrStd::Scope::Flag& _IRSTD_SCOPE_NAME(prefix, id)() noexcept; \
-		IrStd::Scope::Flag& _IRSTD_SCOPE_NAME(prefix, id)() noexcept \
+		namespace Flag \
 		{ \
-			attr IrStd::Scope::Flag scopeFlag = ATOMIC_FLAG_INIT; \
-			return scopeFlag; \
+			extern IrStd::FlagImpl& name() noexcept; \
+			IrStd::FlagImpl& name() noexcept \
+			{ \
+				attr IrStd::FlagImpl scopeFlag; \
+				return scopeFlag; \
+			} \
 		} \
 	}
 
-#define IRSTD_SCOPE_USE(id) _IRSTD_SCOPE_USE(, id)
-#define IRSTD_SCOPE_THREAD_USE(id) _IRSTD_SCOPE_USE(Thread, id)
-
-#define _IRSTD_SCOPE_USE(prefix, id) \
+#define IRSTD_SCOPE_USE(name) \
 	namespace IrStd \
 	{ \
-		extern IrStd::Scope::Flag& _IRSTD_SCOPE_NAME(prefix, id)() noexcept; \
+		namespace Flag \
+		{ \
+			extern IrStd::FlagImpl& name() noexcept; \
+		} \
 	}
 
 /**
@@ -53,7 +58,17 @@
  * \param [id] The ID corresponding to scope to be used. This id must first be
  *             created with IRSTD_SCOPE_REGISTER.
  */
-#define IRSTD_SCOPE(...) IRSTD_GET_MACRO(_IRSTD_SCOPE, __VA_ARGS__)(static, , __VA_ARGS__)
+#define IRSTD_SCOPE(...) IRSTD_GET_MACRO(_IRSTD_SCOPE, __VA_ARGS__)(static, __VA_ARGS__)
+
+/**
+ * \brief Create a local scope
+ *
+ * \param scope The name of the scope. it will create a scope instance with
+ *              this name that can be used further in the function.
+ * \param [id] The ID corresponding to scope to be used. This id must first be
+ *             created with IRSTD_SCOPE_REGISTER.
+ */
+#define IRSTD_SCOPE_LOCAL(...) IRSTD_GET_MACRO(_IRSTD_SCOPE, __VA_ARGS__)(, __VA_ARGS__)
 
 /**
  * \brief Create a thread local scope
@@ -63,25 +78,21 @@
  * \param [id] The ID corresponding to scope to be used. This id must first be
  *             created with IRSTD_SCOPE_THREAD_REGISTER.
  */
-#define IRSTD_SCOPE_THREAD(...) IRSTD_GET_MACRO(_IRSTD_SCOPE, __VA_ARGS__)(static thread_local, Thread, __VA_ARGS__)
+#define IRSTD_SCOPE_THREAD(...) IRSTD_GET_MACRO(_IRSTD_SCOPE, __VA_ARGS__)(static thread_local, __VA_ARGS__)
 
-#define _IRSTD_SCOPE1(attr, prefix, scope) \
-	attr IrStd::Scope::Flag scopeFlag##prefix = ATOMIC_FLAG_INIT; \
-	IrStd::Scope scope(scopeFlag##prefix);
+#define _IRSTD_SCOPE1(attr, scope) \
+	attr IrStd::FlagImpl scopeFlag; \
+	IrStd::Scope scope(scopeFlag);
 
-#define _IRSTD_SCOPE2(attr, prefix, scope, id) \
-	IrStd::Scope scope(IrStd::_IRSTD_SCOPE_NAME(prefix, id)());
-
-#define _IRSTD_SCOPE_NAME(prefix, id) IRSTD_PASTE(__scope, prefix, id)
+#define _IRSTD_SCOPE2(attr, scope, name) \
+	IrStd::Scope scope(IrStd::Flag::name());
 
 namespace IrStd
 {
 	class Scope
 	{
 	public:
-		typedef std::atomic_flag Flag;
-
-		Scope(std::atomic_flag& flag)
+		Scope(FlagImpl& flag)
 				: m_flag(flag)
 				, m_isActivator(false)
 		{
@@ -98,7 +109,7 @@ namespace IrStd
 
 		void activate() noexcept
 		{
-			if (!m_flag.test_and_set())
+			if (!m_flag.setAndGet())
 			{
 				m_isActivator = true;
 			}
@@ -106,7 +117,7 @@ namespace IrStd
 
 		void deactivate() noexcept
 		{
-			m_flag.clear();
+			m_flag.unset();
 		}
 
 		bool isActivator() const noexcept
@@ -115,12 +126,7 @@ namespace IrStd
 		}
 
 	private:
-		Flag& m_flag;
+		FlagImpl& m_flag;
 		bool m_isActivator;
-	};
-
-	/* TODO */
-	class ScopeLock : public Scope
-	{
 	};
 }

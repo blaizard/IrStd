@@ -8,7 +8,6 @@
 #include "../Scope.hpp"
 
 IRSTD_TOPIC_REGISTER(None, "");
-IRSTD_SCOPE_THREAD_USE(IrStdMemoryNoTrace);
 
 // ---- IrStd::Logger ---------------------------------------------------------
 
@@ -251,6 +250,11 @@ void IrStd::Logger::FormatDefault::header(
 		sprintf(&buffer[newlenFile + 1], "%i", static_cast<int>(info.m_line));
 
 		out << " " << std::setw(20) << buffer << "\t";
+	}
+
+	// Reset
+	{
+		out << std::right << std::dec;
 	}
 }
 

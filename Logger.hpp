@@ -14,7 +14,7 @@
 #include "Scope.hpp"
 
 IRSTD_TOPIC_USE(None);
-IRSTD_SCOPE_THREAD_USE(IrStdMemoryNoTrace);
+IRSTD_SCOPE_USE(IrStdMemoryNoTrace);
 
 /**
  * Supports the following arguments:

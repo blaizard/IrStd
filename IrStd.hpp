@@ -6,6 +6,8 @@
 #include "Compiler.hpp"
 #include "Exception.hpp"
 #include "Fetch.hpp"
+#include "Flag.hpp"
+#include "Json.hpp"
 #include "Logger.hpp"
 #include "Main.hpp"
 #include "Memory.hpp"

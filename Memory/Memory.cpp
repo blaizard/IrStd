@@ -35,7 +35,7 @@ void* operator new(size_t size, const std::nothrow_t&) noexcept
 
 void operator delete(void* ptr) noexcept
 {
-	(IrStd::Main::isAlive()) ? IrStd::Memory::getInstance().deleteImpl(ptr) : std::free(ptr);
+	(IrStd::Main::isAlive() && ptr) ? IrStd::Memory::getInstance().deleteImpl(ptr) : std::free(ptr);
 }
 
 // ----------------------------------------------------------------------------
@@ -94,6 +94,7 @@ void* IrStd::Memory::newImpl(size_t size) noexcept
 #if IRSTD_IS_DEBUG
 	// Record this entry
 	{
+		IRSTD_SCOPE_THREAD(scope, IrStdMemoryNoTrace);
 		std::pair<void*, size_t> entry(ptr, size);
 		m_mutexAlloxMap.lock();
 		const auto ret = m_allocMap.insert(entry);
@@ -126,6 +127,7 @@ void IrStd::Memory::deleteImpl(void* ptr) noexcept
 	size_t size = 0;
 	// Update the records
 	{
+		IRSTD_SCOPE_THREAD(scope, IrStdMemoryNoTrace);
 		m_mutexAlloxMap.lock();
 		const auto it = m_allocMap.find(ptr);
 		IRSTD_ASSERT(IrStd::Topic::IrStdMemory, it != m_allocMap.end(), "Unabe to find ptr " << static_cast<void*>(ptr));

@@ -55,16 +55,21 @@ message(STATUS "Compiler: ${IRSTD_COMPILER}")
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 add_subdirectory(Fetch)
+add_subdirectory(Json)
 add_subdirectory(Test)
 add_subdirectory(tests)
 
 set(irstd_sources
 	Exception/Exception.cpp
+	Exception/ExceptionPtr.cpp
 	Logger/Logger.cpp
 	Main/Main.cpp
 	Memory/Memory.cpp
 	Rand/Rand.cpp
 	Bootstrap/Bootstrap.cpp
+	Topic/Topic.cpp
+	Json/Json.cpp
+	Utils/Utils.cpp
 )
 
 add_library(irstd ${irstd_sources})

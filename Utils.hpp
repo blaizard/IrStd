@@ -61,6 +61,8 @@
 
 namespace IrStd
 {
+	bool almostEqual(const double a, const double b) noexcept;
+
 	template<typename A, typename T>
 	class UniquePtr : public std::unique_ptr<T, std::function<void(T*)>>, public AllocatorImpl<A>
 	{
@@ -134,4 +136,49 @@ namespace IrStd
 	};
 	template <class T>
 	bool SingletonScopeImpl<T>::m_isCreated = false;
+
+	/**
+	 * Direct string to stream class
+	 */
+	class StringStream : public std::streambuf
+	{
+	public:
+		explicit StringStream(std::string &str)
+				: m_str(str)
+				, m_out(this)
+		{
+		}
+
+		template<typename T>
+		StringStream& operator<<(const T& in)
+		{
+			m_out << in;
+			return *this;
+		}
+
+	private:
+		typedef typename std::char_traits<char_type> traits;
+		int_type overflow(int_type c)
+		{
+
+			if (traits::eq_int_type(c, traits::eof()))
+			{
+				return traits::not_eof(c);
+			}
+
+			const char_type ch = traits::to_char_type(c);
+			m_str.push_back(ch);
+			return c;
+		}
+
+		std::streamsize xsputn(const char* s, std::streamsize n)
+		{
+			m_str.insert(m_str.end(), s, s + n);                                                                                 
+			return n;
+		}
+
+	private:
+		std::string& m_str;
+		std::ostream m_out;
+	};
 }

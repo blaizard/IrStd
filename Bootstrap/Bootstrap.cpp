@@ -24,6 +24,7 @@
 #include "../Topic.hpp"
 
 IRSTD_TOPIC_REGISTER(IrStdBootstrap, "IrStdBoot");
+IRSTD_SCOPE_USE(IrStdMemoryNoTrace);
 
 IrStd::Bootstrap::Bootstrap()
 {
@@ -44,17 +45,12 @@ IrStd::Bootstrap::Bootstrap()
 
 void IrStd::Bootstrap::onTerminate() noexcept
 {
-	if (auto exc = std::current_exception())
+	IRSTD_SCOPE_THREAD(scope, IrStdMemoryNoTrace);
+
+	if (auto e = std::current_exception())
 	{
-		try
-		{
-			std::rethrow_exception(exc);
-		}
-		catch (const std::exception& e)
-		{
-			std::cerr << "Pending exception: " << e.what() << std::endl;
-		}
-		IrStd::Exception::callStack(std::cerr);
+		IrStd::Exception::print(std::cerr, e);
+		IrStd::Exception::callStack(std::cerr, /*skipFirstNb*/2);
 	}
 }
 
@@ -156,6 +152,8 @@ const char* IrStd::Bootstrap::getSigDescription(int sig)
 void IrStd::Bootstrap::sigHandler(int sig, siginfo_t* info, void* /*secret*/)
 {
 	const char* const description = getSigDescription(sig);
+
+	IRSTD_SCOPE_THREAD(scope, IrStdMemoryNoTrace);
 
 	std::cerr << "FATAL: Received SIGNAL " << std::dec << sig << description
 			<< ", faulty address is " << std::hex << std::showbase << info->si_addr << std::endl

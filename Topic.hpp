@@ -58,3 +58,5 @@ namespace IrStd
 	};
 }
 
+bool operator==(const IrStd::TopicImpl& lhs, const IrStd::TopicImpl& rhs);
+bool operator!=(const IrStd::TopicImpl& lhs, const IrStd::TopicImpl& rhs);

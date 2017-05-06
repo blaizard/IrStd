@@ -7,6 +7,7 @@
 #include "Logger.hpp"
 
 IRSTD_TOPIC_USE(None);
+IRSTD_SCOPE_USE(IrStdMemoryNoTrace);
 
 #define IRSTD_ASSERT(...) \
 	IRSTD_GET_MACRO(_IRSTD_ASSERT, __VA_ARGS__)(__VA_ARGS__)
@@ -34,6 +35,19 @@ IRSTD_TOPIC_USE(None);
 		} \
 	}
 
+#define IRSTD_THROW_ASSERT(...) \
+	IRSTD_GET_MACRO(_IRSTD_THROW_ASSERT, __VA_ARGS__)(__VA_ARGS__)
+
+#define _IRSTD_THROW_ASSERT1(condition) _IRSTD_THROW_ASSERT3(IrStd::Topic::None, condition, "")
+#define _IRSTD_THROW_ASSERT2(condition, expr) _IRSTD_THROW_ASSERT3(IrStd::Topic::None, condition, expr)
+#define _IRSTD_THROW_ASSERT3(topic, condition, expr) \
+	{ \
+		if (!(condition)) \
+		{ \
+			IRSTD_THROW(topic, "Assertion failed: '" #condition "'. " << expr); \
+		} \
+	}
+
 #define IRSTD_CRASH(...) \
 	IRSTD_GET_MACRO(_IRSTD_CRASH, __VA_ARGS__)(__VA_ARGS__)
 
@@ -41,7 +55,14 @@ IRSTD_TOPIC_USE(None);
 #define _IRSTD_CRASH1(expr) _IRSTD_CRASH2(IrStd::Topic::None, expr)
 #define _IRSTD_CRASH2(topic, expr) \
 	{ \
-		IRSTD_LOG_FATAL(topic, expr); \
+		if (IrStd::Flag::IrStdMemoryNoTrace().isSet()) \
+		{ \
+			std::cerr << expr << std::endl; \
+		} \
+		else \
+		{ \
+			IRSTD_LOG_FATAL(topic, expr); \
+		} \
 		std::abort(); \
 	}
 

@@ -8,4 +8,6 @@ build/
 dist/
 */dist/
 gtest
-doc
+rapidjson
+Json/rapidjson
+Test/googletest

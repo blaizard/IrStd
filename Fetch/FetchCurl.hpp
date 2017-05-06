@@ -11,7 +11,7 @@ namespace IrStd
 	public:
 		FetchCurl(std::string& data);
 
-		IrStd::Fetch::Status url(const char* const url);
+		Fetch::Status url(const char* const url);
 	private:
 		static size_t urlCallback(void *contents, size_t size, size_t nmemb, void *userp);
 
