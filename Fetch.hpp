@@ -3,6 +3,10 @@
 #include <string>
 #include <future>
 #include <memory>
+#include <vector>
+#include <sstream>
+
+#include "Type.hpp"
 
 namespace IrStd
 {
@@ -30,13 +34,42 @@ namespace IrStd
 		std::string& m_data;
 	};
 
+	// Forward declaration
+	class FetchCurl;
 	class FetchUrl : public Fetch
 	{
 	public:
-		FetchUrl(const char* const url, std::string& data)
-				: Fetch(data)
-				, m_url(url)
+		FetchUrl(const char* const url, std::string& data);
+
+		/**
+		 * Add post data to the request
+		 */
+		void addPost(const char* const str);
+		void addPost(const char* const param, const Type::ShortString value);
+		template<class Value>
+		void addPost(const char* const param, const Value& value)
 		{
+			std::stringstream streamStr;
+			streamStr << value;
+			addPost(param, Type::ShortString(streamStr.str().c_str()));
+		}
+
+		/**
+		 * Return the post string
+		 */
+		const std::string& getPost() const noexcept;
+
+		/**
+		 * Add a custom header to the request
+		 */
+		void addHeader(const char* const str);
+		void addHeader(const char* const param, const Type::ShortString value);
+		template<class Value>
+		void addHeader(const char* const param, const Value& value)
+		{
+			std::stringstream streamStr;
+			streamStr << value;
+			addHeader(param, Type::ShortString(streamStr.str().c_str()));
 		}
 
 		/**
@@ -46,9 +79,11 @@ namespace IrStd
 		Status processSync();
 
 	private:
+		friend FetchCurl;
 		const char* const m_url;
+		std::string m_post;
+		std::vector<std::string> m_headerList;
 	};
-
 
 	class FetchRepeat
 	{

@@ -54,12 +54,15 @@ endif()
 message(STATUS "Compiler: ${IRSTD_COMPILER}")
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
+add_subdirectory(Crypto)
 add_subdirectory(Fetch)
 add_subdirectory(Json)
 add_subdirectory(Test)
 add_subdirectory(tests)
 
 set(irstd_sources
+	Data/Data.cpp
+	Event/Event.cpp
 	Exception/Exception.cpp
 	Exception/ExceptionPtr.cpp
 	Logger/Logger.cpp
@@ -67,10 +70,17 @@ set(irstd_sources
 	Memory/Memory.cpp
 	Rand/Rand.cpp
 	Bootstrap/Bootstrap.cpp
+	Thread/Thread.cpp
 	Topic/Topic.cpp
+	Type/Type.cpp
+	Type/Timestamp.cpp
+	Type/ShortString.cpp
+	Server/Server.cpp
+	Server/ServerHTTP.cpp
+	Server/ServerREST.cpp
 	Json/Json.cpp
 	Utils/Utils.cpp
 )
 
 add_library(irstd ${irstd_sources})
-target_link_libraries(irstd irstdfetch)
+target_link_libraries(irstd irstdfetch irstdcrypto)

@@ -5,7 +5,8 @@ class MemoryTest : public IrStd::Test
 {
 };
 
-TEST_F(MemoryTest, testNewDelete) {
+TEST_F(MemoryTest, testNewDelete)
+{
 #if IRSTD_IS_DEBUG
 	{
 		const size_t nbNew = IrStd::Memory::getInstance().getStatNbNew();

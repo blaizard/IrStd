@@ -107,11 +107,13 @@ TEST_F(LoggerTest, testThreadSync) {
 	const size_t NB_THREADS = 10;
 	std::thread t[NB_THREADS];
 
-	for (size_t i = 0; i < NB_THREADS; ++i) {
+	for (size_t i = 0; i < NB_THREADS; ++i)
+	{
 		t[i] = std::thread(&LoggerTest::threadLogSync, this, i);
 	}
 
-	for (size_t i = 0; i < NB_THREADS; ++i) {
+	for (size_t i = 0; i < NB_THREADS; ++i)
+	{
 		t[i].join();
 	}
 
@@ -135,7 +137,8 @@ TEST_F(LoggerTest, testMultiStream) {
 
 // ---- LoggerTest::testGlobalFilter ------------------------------------------
 
-TEST_F(LoggerTest, testGlobalFilter) {
+TEST_F(LoggerTest, testGlobalFilter)
+{
 	getLogger().setLevel(IrStd::Logger::Level::Trace);
 	{
 		loggerClear();
@@ -164,6 +167,14 @@ TEST_F(LoggerTest, testGlobalFilter) {
 		IRSTD_LOG_INFO(getLogger(), IrStd::Topic::TestTopic1, "topic");
 		ASSERT_TRUE(getLoggerStr() == "info\ntopic\n") << "getLoggerStr()=\"" << getLoggerStr() << "\"";
 	}
+
+	// Non maskable
+/*	{
+		loggerClear();
+		IRSTD_LOG_ERROR(getLogger(), "notopic");
+		IRSTD_LOG_ERROR(getLogger(), IrStd::Topic::TestTopic1, "topic");
+		ASSERT_TRUE(getLoggerStr() == "info\ntopic\n") << "getLoggerStr()=\"" << getLoggerStr() << "\"";
+	}*/
 }
 
 // ---- LoggerTest::testStress ------------------------------------------------
@@ -256,11 +267,13 @@ TEST_F(LoggerTest, testStressMultiThread) {
 		}
 	}
 
-	for (size_t i = 0; i < NB_THREADS; ++i) {
+	for (size_t i = 0; i < NB_THREADS; ++i)
+	{
 		t[i] = std::thread(&LoggerTest::randomLoggerOperations, this, std::ref(loggerList));
 	}
 
-	for (size_t i = 0; i < NB_THREADS; ++i) {
+	for (size_t i = 0; i < NB_THREADS; ++i)
+	{
 		t[i].join();
 	}
 

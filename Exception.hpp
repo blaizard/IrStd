@@ -71,6 +71,11 @@ namespace IrStd
 		const char* what() const noexcept;
 
 		/**
+		 * \brief Print some tracing information, useful for debug
+		 */
+		std::string trace() const;
+
+		/**
 		 * Get the exception topic
 		 */
 		const IrStd::TopicImpl& getTopic() const noexcept;
@@ -110,12 +115,9 @@ namespace IrStd
 		static void print(std::ostream& out, std::exception_ptr pE = nullptr) noexcept;
 
 		/**
-		 * \brief Rethrow the current exception(s)
+		 * \brief Rethrow the current exception(s) and wrap it if needed
 		 */
-		static inline void rethrow()
-		{
-			throw;
-		}
+		static void rethrow();
 
 		/**
 		 * \brief Rethrow the current exception(s) and apply the allowretry flag to it
@@ -123,7 +125,7 @@ namespace IrStd
 		static void rethrowRetry();
 
 	private:
-		static std::string demangle(const char* const symbol);
+		static void demangle(std::ostream& out, const char* const symbol);
 
 		const size_t m_line;
 		const char* const m_file;

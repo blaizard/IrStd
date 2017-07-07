@@ -55,7 +55,7 @@ IRSTD_SCOPE_USE(IrStdMemoryNoTrace);
 #define _IRSTD_CRASH1(expr) _IRSTD_CRASH2(IrStd::Topic::None, expr)
 #define _IRSTD_CRASH2(topic, expr) \
 	{ \
-		if (IrStd::Flag::IrStdMemoryNoTrace().isSet()) \
+		if (IrStd::Flag::IrStdMemoryNoTrace->isSet()) \
 		{ \
 			std::cerr << expr << std::endl; \
 		} \
@@ -76,3 +76,22 @@ IRSTD_SCOPE_USE(IrStdMemoryNoTrace);
 		std::cerr << expr << std::endl; \
 		std::abort(); \
 	}
+
+#define IRSTD_UNREACHABLE(...) \
+	IRSTD_GET_MACRO(_IRSTD_UNREACHABLE, __VA_ARGS__)(__VA_ARGS__)
+
+#define _IRSTD_UNREACHABLE0() _IRSTD_UNREACHABLE1(IrStd::Topic::None) 
+#define _IRSTD_UNREACHABLE1(topic) IRSTD_CRASH(topic, "Code location unreachable")
+
+/**
+ * \brief Assert that \b base is the base class of the class \b descendant
+ */
+#define IRSTD_ASSERT_TYPE_DESCENDANT(base, descendant) \
+	{ \
+		static_assert(!std::is_same<base, descendant>::value, "The class " #descendant " must be a descendant of type " #base); \
+		(void) static_cast<base*>((descendant*) nullptr); \
+	}
+
+
+#define IRSTD_ASSERT_TYPEOF(variable, ...) \
+	static_assert(IRSTD_TYPEOF(variable, __VA_ARGS__), "Variable '" #variable "' is not of type (" #__VA_ARGS__ ")");

@@ -6,6 +6,7 @@
 #pragma GCC diagnostic ignored "-Werror"
 #include "gtest/gtest.h"
 #pragma GCC diagnostic pop
+#pragma GCC diagnostic ignored "-Wstrict-overflow"
 
 #include "Rand.hpp"
 
@@ -48,7 +49,7 @@ namespace IrStd
 		 *
 		 * \return true if the analyze succeed, false otherwise.
 		 */
-		bool validateOutput(const std::string& output, const char* const regexStr, const bool expectSuccess)
+		bool validateOutput(const std::string& output, const char* const regexStr, const bool expectSuccess = true)
 		{
 			return validateOutput(output.c_str(), regexStr, RegexMatch::MATCH_ANY, expectSuccess);
 		}

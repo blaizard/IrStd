@@ -11,7 +11,9 @@
 #include "../Compiler.hpp"
 
 IRSTD_TOPIC_REGISTER(IrStdMemory);
-IRSTD_SCOPE_THREAD_REGISTER(IrStdMemoryNoTrace);
+IRSTD_SCOPE_LOCALTHREAD_REGISTER(IrStdMemoryNoTrace);
+
+//#define IRSTDMEMORY_DEBUG 1
 
 // ----------------------------------------------------------------------------
 
@@ -30,15 +32,19 @@ void* operator new(size_t size)
 
 void* operator new(size_t size, const std::nothrow_t&) noexcept
 {
-	return (IrStd::Main::isAlive()) ? IrStd::Memory::getInstance().newImpl(size) : std::malloc(size);
+	return (IrStd::Main::isAlive() && IrStd::Memory::m_enable) ?
+			IrStd::Memory::getInstance().newImpl(size) : std::malloc(size);
 }
 
 void operator delete(void* ptr) noexcept
 {
-	(IrStd::Main::isAlive() && ptr) ? IrStd::Memory::getInstance().deleteImpl(ptr) : std::free(ptr);
+	(IrStd::Main::isAlive() && ptr && IrStd::Memory::m_enable) ?
+			IrStd::Memory::getInstance().deleteImpl(ptr) : std::free(ptr);
 }
 
 // ----------------------------------------------------------------------------
+
+bool IrStd::Memory::m_enable = true;
 
 IrStd::Memory::Memory()
 		: m_allocStatPeak(0)
@@ -79,6 +85,14 @@ size_t IrStd::Memory::getStatNbDelete() const noexcept
 	return m_allocStatNbDelete.load();
 }
 
+void IrStd::Memory::disable() noexcept
+{
+	m_enable = false;
+#if IRSTD_IS_DEBUG
+	IRSTD_LOG_INFO(IrStd::Topic::IrStdMemory, "Disabled memory manager: " << IRSTD_MEMORY_DUMP_STREAM());
+#endif
+}
+
 // ---- IrStd::Memory::newImpl ------------------------------------------------
 
 void* IrStd::Memory::newImpl(size_t size) noexcept
@@ -94,19 +108,21 @@ void* IrStd::Memory::newImpl(size_t size) noexcept
 #if IRSTD_IS_DEBUG
 	// Record this entry
 	{
-		IRSTD_SCOPE_THREAD(scope, IrStdMemoryNoTrace);
+		IRSTD_SCOPE(IrStd::Flag::IrStdMemoryNoTrace);
 		std::pair<void*, size_t> entry(ptr, size);
-		m_mutexAlloxMap.lock();
-		const auto ret = m_allocMap.insert(entry);
-		m_mutexAlloxMap.unlock();
-		IRSTD_ASSERT(IrStd::Topic::IrStdMemory, ret.second, "Entry " << static_cast<void*>(ptr) << " already exists");
+		{
+			std::lock_guard<std::mutex> lock(m_mutexAllocMap);
+			const auto ret = m_allocMap.insert(entry);
+			IRSTD_ASSERT(IrStd::Topic::IrStdMemory, ret.second, "Entry " << static_cast<void*>(ptr) << " already exists");
+		}
 		m_allocStatCurrent.fetch_add(size);
 		m_allocStatPeak.store(std::max(getStatPeak(), getStatCurrent()));
 		m_allocStatNbNew++;
 	}
 
+#if defined(IRSTDMEMORY_DEBUG)
 	{
-		IRSTD_SCOPE_THREAD(scope, IrStdMemoryNoTrace);
+		IRSTD_SCOPE(scope, IrStd::Flag::IrStdMemoryNoTrace);
 		if (scope.isActivator())
 		{
 			IRSTD_LOG_TRACE(IrStd::Topic::IrStdMemory, "Allocated (size=" << size
@@ -115,35 +131,40 @@ void* IrStd::Memory::newImpl(size_t size) noexcept
 		}
 	}
 #endif
+#endif
 
 	return ptr;
 }
 
 // ---- IrStd::Memory::deleteImpl ---------------------------------------------
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 void IrStd::Memory::deleteImpl(void* ptr) noexcept
 {
 #if IRSTD_IS_DEBUG
 	size_t size = 0;
 	// Update the records
 	{
-		IRSTD_SCOPE_THREAD(scope, IrStdMemoryNoTrace);
-		m_mutexAlloxMap.lock();
-		const auto it = m_allocMap.find(ptr);
-		IRSTD_ASSERT(IrStd::Topic::IrStdMemory, it != m_allocMap.end(), "Unabe to find ptr " << static_cast<void*>(ptr));
-		size = it->second;
-		m_allocStatCurrent.fetch_sub(it->second);
-		m_allocMap.erase(it);
-		m_mutexAlloxMap.unlock();
+		IRSTD_SCOPE(IrStd::Flag::IrStdMemoryNoTrace);
+		{
+			std::lock_guard<std::mutex> lock(m_mutexAllocMap);
+			const auto it = m_allocMap.find(ptr);
+			IRSTD_ASSERT(IrStd::Topic::IrStdMemory, it != m_allocMap.end(),
+					"Unable to find ptr " << static_cast<void*>(ptr));
+			size = it->second;
+			m_allocStatCurrent.fetch_sub(it->second);
+			m_allocMap.erase(it);
+		}
 		m_allocStatNbDelete++;
 	}
 #endif
 
 	std::free(ptr);
 
-#if IRSTD_IS_DEBUG
+#if IRSTD_IS_DEBUG && defined(IRSTDMEMORY_DEBUG)
 	{
-		IRSTD_SCOPE_THREAD(scope, IrStdMemoryNoTrace);
+		IRSTD_SCOPE(scope, IrStd::Flag::IrStdMemoryNoTrace);
 		if (scope.isActivator())
 		{
 			IRSTD_LOG_TRACE(IrStd::Topic::IrStdMemory, "Free      (size=" << size
@@ -153,3 +174,4 @@ void IrStd::Memory::deleteImpl(void* ptr) noexcept
 	}
 #endif
 }
+#pragma GCC diagnostic pop

@@ -1,8 +1,12 @@
 #pragma once
 
+#include <stdint.h>
+
 #include "Utils.hpp"
 
-#define IRSTD_IS_COMPILER(name, ...) IRSTD_IS_COMPILER_##name(__VA_ARGS__)
+// ---- COMPILER --------------------------------------------------------------
+
+#define IRSTD_IS_COMPILER(name, ...) IRSTD_PASTE(IRSTD_IS_COMPILER_, name)(__VA_ARGS__)
 
 /**
  * Support for GCC compiler
@@ -33,6 +37,42 @@
 #endif
 
 #define IRSTD_COMPILER_STRING IRSTD_COMPILER_NAME " v" IRSTD_COMPILER_VERSION
+
+// ---- PLATFORM --------------------------------------------------------------
+
+#define IRSTD_IS_PLATFORM(name, ...) IRSTD_PASTE(IRSTD_IS_PLATFORM_, name)(__VA_ARGS__)
+
+/**
+ * Detect the platform type
+ */
+#define IRSTD_IS_PLATFORM_LINUX() (defined(__linux__))
+#define IRSTD_IS_PLATFORM_WINDOWS() (defined(_WIN32))
+#define IRSTD_IS_PLATFORM_APPLE() (defined(__APPLE__))
+
+#if IRSTD_IS_PLATFORM(LINUX)
+	#define IRSTD_PLATFORM_NAME "LINUX"
+#elif IRSTD_IS_PLATFORM(WINDOWS)
+	#define IRSTD_PLATFORM_NAME "WINDOWS"
+#elif IRSTD_IS_PLATFORM(APPLE)
+	#define IRSTD_PLATFORM_NAME "APPLE"
+#else
+	#define IRSTD_PLATFORM_NAME "UKNOWN"
+	IRSTD_STATIC_WARNING("Unknown platform type")
+#endif
+
+
+#if defined(UINTPTR_MAX) && UINTPTR_MAX == 0xffffffffffffffff
+	#define IRSTD_PLATFORM_BIT 64
+#elif defined(UINTPTR_MAX) && UINTPTR_MAX == 0xffffffff
+	#define IRSTD_PLATFORM_BIT 32
+#else
+	#define IRSTD_PLATFORM_BIT 0
+	IRSTD_STATIC_WARNING("Unknown platform bit width")
+#endif
+
+#define IRSTD_PLATFORM_STRING IRSTD_PLATFORM_NAME " " IRSTD_QUOTE(IRSTD_PLATFORM_BIT) "-bit"
+
+// ---- BUILD TYPE ------------------------------------------------------------
 
 /**
  * Defines the build type

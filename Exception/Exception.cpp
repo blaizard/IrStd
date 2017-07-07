@@ -80,8 +80,9 @@ void IrStd::Exception::print(
 			}
 			out << " " << e.what() << std::endl;
 		}
-		else if (pE.isException())
+		else
 		{
+			IRSTD_ASSERT(pE.isException(), "The exception must be of type std::exception");
 			const auto& e = pE.getException();
 			out << "std::exception: " << e.what() << std::endl;
 		}
@@ -141,6 +142,28 @@ IrStd::ExceptionPtr IrStd::Exception::getNext(const std::exception* pE)
 	return ExceptionPtr();
 }
 
+void IrStd::Exception::rethrow()
+{
+	auto pE = std::current_exception();
+	IRSTD_ASSERT(pE, "There are no pending exceptions");
+
+	try
+	{
+		std::rethrow_exception(pE);
+	}
+	catch (IrStd::Exception& e)
+	{
+		throw;
+	}
+	catch(...)
+	{
+		IRSTD_THROW("Exception wrapper");
+	}
+
+	throw;
+}
+
+
 void IrStd::Exception::rethrowRetry()
 {
 	auto pE = std::current_exception();
@@ -161,6 +184,36 @@ void IrStd::Exception::rethrowRetry()
 	}
 }
 
+std::string IrStd::Exception::trace() const
+{
+	std::stringstream streamStr;
+	const std::function<void (const IrStd::ExceptionPtr)> printRec
+			= [&](const IrStd::ExceptionPtr pE)
+	{
+		IRSTD_ASSERT(pE, "ExceptionPtr passed into argument is null");
+
+		if (pE.isIrStdException())
+		{
+			const auto& e = pE.getIrStdException();
+			streamStr << e.m_file << ":" << e.m_line << " (" << e.m_func << ")";
+		}
+		else
+		{
+			streamStr << "unknown";
+		}
+
+		// Handle chained exceptions
+		if (auto pNexE = pE.getNext())
+		{
+			streamStr << " -> ";
+			printRec(pNexE);
+		}
+	};
+
+	printRec(IrStd::ExceptionPtr(this));
+	return streamStr.str();
+}
+
 const char* IrStd::Exception::what() const noexcept
 {
 	return m_message.c_str();
@@ -171,10 +224,11 @@ const IrStd::TopicImpl& IrStd::Exception::getTopic() const noexcept
 	return m_topic;
 }
 
-std::string IrStd::Exception::demangle(const char* const symbol)
+void IrStd::Exception::demangle(std::ostream& out, const char* const symbol)
 {
-	const std::unique_ptr<char, decltype(&std::free)> demangled(abi::__cxa_demangle(symbol, 0, 0, 0), &std::free);
-	return (demangled) ? demangled.get() : symbol;
+	int status;
+	const std::unique_ptr<char, decltype(&std::free)> demangled(abi::__cxa_demangle(symbol, 0, 0, &status), &std::free);
+	out << ((demangled && status == 0) ? demangled.get() : symbol);
 }
 
 void IrStd::Exception::callStack(std::ostream& out, const size_t skipFirstNb) noexcept
@@ -189,26 +243,31 @@ void IrStd::Exception::callStack(std::ostream& out, const size_t skipFirstNb) no
 	{
 		char* const symbol = symbols.get()[level];
 		char* end = symbol;
+		// example: symbol = end = ./test(operator new(int)+0x10) [0x45]
 		while (*end)
 		{
 			++end;
 		}
+		// example: symbol = "./test(operator new(int)+0x10) [0x45]" = end
 		while (end != symbol && *end != '+')
 		{
 			--end;
 		}
+		// example: symbol = "./test(operator new(int)" = end
 		char* begin = end;
 		while (begin != symbol && *begin != '(')
 		{
 			--begin;
 		}
 
-		out << "#" << std::dec << std::left << std::setw(3) << (level - skipFirstNb);
+		out << "#" << std::dec << std::left << std::setfill(' ')
+				<< std::setw(3) << (level - skipFirstNb);
 		if (begin != symbol)
 		{
-			out << std::string(symbol, ++begin - symbol);
+			out.write(symbol, ++begin - symbol);
 			*end++ = '\0';
-			out << demangle(begin) << '+' << end;
+			demangle(out, begin);
+			out << '+' << end;
 		}
 		else
 		{

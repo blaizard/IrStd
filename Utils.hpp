@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cxxabi.h>
+
 #include "Allocator.hpp"
 
 /**
@@ -59,9 +61,37 @@
 #define _IRSTD_PASTE4(a, b, c, d) a ## b ## c ## d
 #define _IRSTD_PASTE5(a, b, c, d, e) a ## b ## c ## d ## e
 
+/**
+ * \brief Check if a variable is of a certain type
+ */
+#define IRSTD_TYPEOF(variable, ...) \
+	(IRSTD_GET_MACRO(_IRSTD_TYPEOF, __VA_ARGS__)(variable, __VA_ARGS__))
+#define _IRSTD_TYPEOF1(variable, refType1) std::is_same<decltype(variable), refType1>::value
+#define _IRSTD_TYPEOF2(variable, refType1, ...) _IRSTD_TYPEOF1(variable, refType1) || _IRSTD_TYPEOF1(variable, __VA_ARGS__)
+#define _IRSTD_TYPEOF3(variable, refType1, ...) _IRSTD_TYPEOF1(variable, refType1) || _IRSTD_TYPEOF2(variable, __VA_ARGS__)
+#define _IRSTD_TYPEOF4(variable, refType1, ...) _IRSTD_TYPEOF1(variable, refType1) || _IRSTD_TYPEOF3(variable, __VA_ARGS__)
+#define _IRSTD_TYPEOF5(variable, refType1, ...) _IRSTD_TYPEOF1(variable, refType1) || _IRSTD_TYPEOF4(variable, __VA_ARGS__)
+#define _IRSTD_TYPEOF6(variable, refType1, ...) _IRSTD_TYPEOF1(variable, refType1) || _IRSTD_TYPEOF5(variable, __VA_ARGS__)
+#define _IRSTD_TYPEOF7(variable, refType1, ...) _IRSTD_TYPEOF1(variable, refType1) || _IRSTD_TYPEOF6(variable, __VA_ARGS__)
+#define _IRSTD_TYPEOF8(variable, refType1, ...) _IRSTD_TYPEOF1(variable, refType1) || _IRSTD_TYPEOF7(variable, __VA_ARGS__)
+
+/**
+ * \brief Usefull function for debugging
+ */
+#define IRSTD_DEBUG_TYPE(variable) getVariableType(variable)
+
 namespace IrStd
 {
 	bool almostEqual(const double a, const double b) noexcept;
+
+	template<class T>
+	std::string getVariableType(const T& variable)
+	{
+		char* const name = abi::__cxa_demangle(typeid(variable).name(), 0, 0, NULL);
+		const std::string typeStr(name);
+		free(name);
+		return typeStr;
+	}
 
 	template<typename A, typename T>
 	class UniquePtr : public std::unique_ptr<T, std::function<void(T*)>>, public AllocatorImpl<A>
@@ -177,7 +207,6 @@ namespace IrStd
 			return n;
 		}
 
-	private:
 		std::string& m_str;
 		std::ostream m_out;
 	};

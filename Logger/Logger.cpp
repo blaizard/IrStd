@@ -2,14 +2,17 @@
 #include <iomanip>
 #include <memory>
 #include <mutex>
-#include <thread>
 
 #include "../Logger.hpp"
 #include "../Scope.hpp"
+#include "../Thread.hpp"
 
 IRSTD_TOPIC_REGISTER(None, "");
 
 // ---- IrStd::Logger ---------------------------------------------------------
+
+// Global flag to enable/disable traces
+bool IrStd::Logger::m_globalEnable = true;
 
 IrStd::Logger::Logger()
 {
@@ -30,7 +33,7 @@ IrStd::Logger::Logger(const Logger& logger)
 
 void IrStd::Logger::operator=(Logger const& logger)
 {
-	IRSTD_SCOPE_THREAD(scope, IrStdMemoryNoTrace);
+	IRSTD_SCOPE(IrStd::Flag::IrStdMemoryNoTrace);
 	m_streamList.empty();
 	for (const auto& stream : logger.m_streamList)
 	{
@@ -43,6 +46,11 @@ IrStd::Logger& IrStd::Logger::getDefault()
 {
 	static Logger instance{std::cout};
 	return instance;
+}
+
+void IrStd::Logger::disable() noexcept
+{
+	m_globalEnable = false;
 }
 
 // ---- IrStd::Logger::entry --------------------------------------------------
@@ -108,14 +116,14 @@ IrStd::Logger::OutputStreamPtr IrStd::Logger::entry(
 		const TopicImpl& topic)
 {
 	Info info{level, topic, line, file, func};
-	gettimeofday(&info.m_time, nullptr);
-	auto pOutStream = OutputStreamPtr(new OutputStream(m_streamList, info));
+	info.m_time = Type::Timestamp::now();
+	auto pOutStream = OutputStreamPtr(new OutputStream(m_filter, m_streamList, info));
 	return std::move(pOutStream);
 }
 
 void IrStd::Logger::addStream(const Stream& stream)
 {
-	IRSTD_SCOPE_THREAD(scope, IrStdMemoryNoTrace);
+	IRSTD_SCOPE(IrStd::Flag::IrStdMemoryNoTrace);
 	m_streamList.push_back(stream);
 }
 
@@ -163,13 +171,17 @@ bool IrStd::Logger::isIgnored(
 		const Level level,
 		const TopicImpl& topic) noexcept
 {
-	if (m_filter.isIgnored(level, topic))
-	{
-		return true;
-	}
+	const bool isMainIgnored = m_filter.isIgnored(level, topic);
 	for (auto& stream : m_streamList)
 	{
-		if (!stream.m_filter.isIgnored(level, topic))
+		if (!stream.m_hasFilter)
+		{
+			if (!isMainIgnored)
+			{
+				return false;
+			}
+		}
+		else if (!stream.m_filter.isIgnored(level, topic))
 		{
 			return false;
 		}
@@ -202,6 +214,13 @@ void IrStd::Logger::FormatRaw::header(
 {
 }
 
+void IrStd::Logger::FormatRaw::body(
+	std::ostream& out,
+	const std::string& str) const
+{
+	out << str;
+}
+
 void IrStd::Logger::FormatRaw::tail(std::ostream& out) const
 {
 	out << std::endl;
@@ -215,20 +234,11 @@ void IrStd::Logger::FormatDefault::header(
 {
 	// Format the date
 	{
-		const tm *pltm = localtime(&info.m_time.tv_sec);
-		out << std::dec << std::right << std::setfill('0')
-				<< std::setw(4) << (pltm->tm_year + 1900)
-				<< "-" << std::setw(2) << (pltm->tm_mon + 1)
-				<< "-" << std::setw(2) << (pltm->tm_mday)
-				<< " " << std::setw(2) << (pltm->tm_hour)
-				<< ":" << std::setw(2) << (pltm->tm_min)
-				<< ":" << std::setw(2) << (pltm->tm_sec)
-				<< "." << std::setw(6) << (info.m_time.tv_usec);
+		out << info.m_time;
 	}
 	// Format the thread ID
 	{
-		const std::thread::id id = std::this_thread::get_id();
-		out << " [0x" << std::setw(10) << std::hex << id << "]";
+		out << " [0x" << std::setw(16) << std::setfill('0') << std::hex << Thread::getHash() << "]";
 	}
 	// Format the level
 	{
@@ -239,22 +249,45 @@ void IrStd::Logger::FormatDefault::header(
 	out << " " << std::setfill(' ') << std::left << std::setw(12) << info.m_topic.getStr();
 	// Format the file & line
 	{
-		constexpr size_t FILE_LENGTH = 32;
+		constexpr size_t FILE_LENGTH = 22;
 		char buffer[FILE_LENGTH + 16];
 		const size_t lenFile =  strlen(info.m_file);
 		const size_t startFile = (lenFile > FILE_LENGTH) ? lenFile - FILE_LENGTH : 0;
-		const size_t newlenFile = (lenFile > FILE_LENGTH) ? FILE_LENGTH : lenFile;
 
-		strcpy(buffer, &info.m_file[startFile]);
-		buffer[newlenFile] = ':';
-		sprintf(&buffer[newlenFile + 1], "%i", static_cast<int>(info.m_line));
+		sprintf(buffer, "%s:%i", &info.m_file[startFile], static_cast<int>(info.m_line));
 
-		out << " " << std::setw(20) << buffer << "\t";
+		out << " " << std::setw(FILE_LENGTH + 5) << buffer;
 	}
 
 	// Reset
 	{
-		out << std::right << std::dec;
+		out << " " << std::right << std::dec;
+	}
+}
+
+void IrStd::Logger::FormatDefault::body(
+	std::ostream& out,
+	const std::string& str) const
+{
+	std::string::size_type startPos = 0;
+	std::string::size_type endPos = 0;
+	bool firstLine = true;
+
+	while ((endPos = str.find("\n", startPos)) != std::string::npos)
+	{
+		if (!firstLine)
+		{
+			out << "\n" << std::string(88, ' ');
+		}
+		out.write(&str.at(startPos), endPos - startPos);
+		startPos = endPos + 1;
+		firstLine = false;
+	}
+
+	// Print the rest
+	if (startPos < str.size())
+	{
+		out << &str.at(startPos);
 	}
 }
 
@@ -266,9 +299,11 @@ void IrStd::Logger::FormatDefault::tail(std::ostream& out) const
 // ---- IrStd::Logger::OutputStream -------------------------------------------
 
 IrStd::Logger::OutputStream::OutputStream(
+		const Filter filter,
 		StreamList& streamList,
 		const Info& info)
-		: m_streamList(streamList)
+		: m_filter(filter)
+		, m_streamList(streamList)
 		, m_info(info)
 		, m_bufferStream(m_buffer)
 {
@@ -276,7 +311,7 @@ IrStd::Logger::OutputStream::OutputStream(
 }
 
 IrStd::Logger::OutputStream::OutputStream(const OutputStream&& os)
-		: OutputStream{os.m_streamList, os.m_info}
+		: OutputStream{os.m_filter, os.m_streamList, os.m_info}
 {
 }
 
@@ -286,16 +321,18 @@ IrStd::Logger::OutputStream::~OutputStream()
 
 	// This prevents everything inside this scope to output trace
 	IRSTD_SCOPE_THREAD(scope);
-	if (scope.isActivator())
+	if (scope.isActivator() && m_globalEnable)
 	{
+		const bool isMainIgnored = m_filter.isIgnored(m_info.m_level, m_info.m_topic);
 		for (auto& stream : m_streamList)
 		{
-			if (!stream.m_filter.isIgnored(m_info.m_level, m_info.m_topic))
+			if ((stream.m_hasFilter && !stream.m_filter.isIgnored(m_info.m_level, m_info.m_topic))
+					|| (!stream.m_hasFilter && !isMainIgnored))
 			{
 				const std::string& str = m_bufferStream.str();
 				std::lock_guard<std::mutex> lock(mtx);
 				stream.m_pFormat->header(stream.m_os, m_info);
-				stream.m_os << str;
+				stream.m_pFormat->body(stream.m_os, str);
 				stream.m_pFormat->tail(stream.m_os);
 			}
 		}

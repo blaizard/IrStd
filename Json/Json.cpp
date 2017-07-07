@@ -22,11 +22,11 @@ IrStd::Json::Json(const char* const str)
 	{
 		IRSTD_THROW(IrStd::Topic::IrStdJson, "JSON parse error: "
 				<< rapidjson::GetParseError_En(result.Code())
-				<< " (offset=" << result.Offset() << ")");
+				<< " (offset=" << result.Offset() << "), dump=" << str);
 	}
 }
 
-void IrStd::Json::print(std::ostream& out) const
+void IrStd::Json::toStream(std::ostream& out) const
 {
 	rapidjson::StringBuffer buffer;
 	rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);

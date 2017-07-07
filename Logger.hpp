@@ -9,9 +9,11 @@
 #include <sstream>
 #include <mutex>
 
+#include "Bootstrap.hpp"
 #include "Utils.hpp"
 #include "Topic.hpp"
 #include "Scope.hpp"
+#include "Type.hpp"
 
 IRSTD_TOPIC_USE(None);
 IRSTD_SCOPE_USE(IrStdMemoryNoTrace);
@@ -45,7 +47,7 @@ IRSTD_SCOPE_USE(IrStdMemoryNoTrace);
 #define __IRSTD_LOG(message, ...) \
 	if (!IrStd::Logger::isIgnoredStatic(__VA_ARGS__)) \
 	{ \
-		IRSTD_SCOPE_THREAD(irstdLoggerScope, IrStdMemoryNoTrace); \
+		IRSTD_SCOPE(irstdLoggerScope, IrStd::Flag::IrStdMemoryNoTrace); \
 		*IrStd::Logger::entryStatic(__LINE__, (strrchr(__FILE__, '/') ? \
 				strrchr(__FILE__, '/') + 1 : __FILE__), __func__, __VA_ARGS__) << message; \
 	}
@@ -53,12 +55,22 @@ IRSTD_SCOPE_USE(IrStdMemoryNoTrace);
 #define __IRSTD_LOG_NOARG(message) \
 	if (!IrStd::Logger::isIgnoredStatic()) \
 	{ \
-		IRSTD_SCOPE_THREAD(irstdLoggerScope, IrStdMemoryNoTrace); \
+		IRSTD_SCOPE(irstdLoggerScope, IrStd::Flag::IrStdMemoryNoTrace); \
 		*IrStd::Logger::entryStatic(__LINE__, (strrchr(__FILE__, '/') ? \
 				strrchr(__FILE__, '/') + 1 : __FILE__), __func__) << message; \
 	}
 
-#define IRSTD_LOGGER_DEFINE_LEVEL(verbosity, id) (static_cast<uint32_t>(verbosity << 16) | static_cast<uint16_t>(id))
+/**
+ * This flag will make the trace always be printed regardless of the topic selected,
+ * unless a higher trace level is sepcified.
+ */
+#define IRSTD_LOGGER_NON_MASKABLE 0x10000
+
+#define IRSTD_LOGGER_DEFINE_LEVEL(...) IRSTD_GET_MACRO(_IRSTD_LOGGER_DEFINE_LEVEL, __VA_ARGS__)(__VA_ARGS__)
+#define _IRSTD_LOGGER_DEFINE_LEVEL2(verbosity, id) _IRSTD_LOGGER_DEFINE_LEVEL3(verbosity, id, 0)
+#define _IRSTD_LOGGER_DEFINE_LEVEL3(verbosity, id, flags) \
+		(static_cast<uint16_t>(id) | static_cast<uint32_t>((0xfff & verbosity) << 20) \
+		| static_cast<uint32_t>(0xf0000 & flags))
 
 namespace IrStd
 {
@@ -70,27 +82,28 @@ namespace IrStd
 			/**
 			 * Designates finer-grained informational events than the DEBUG.
 			 */
-			Trace = IRSTD_LOGGER_DEFINE_LEVEL(0x0001, 't'),
+			Trace = IRSTD_LOGGER_DEFINE_LEVEL(0x001, 't'),
 			/**
 			 * Designates fine-grained informational events that are most useful to debug an application.
 			 */
-			Debug = IRSTD_LOGGER_DEFINE_LEVEL(0x0002, 'd'),
+			Debug = IRSTD_LOGGER_DEFINE_LEVEL(0x002, 'd'),
 			/**
 			 * Designates informational messages that highlight the progress of the application at coarse-grained level.
 			 */
-			Info = IRSTD_LOGGER_DEFINE_LEVEL(0x0004, 'i'),
+			Info = IRSTD_LOGGER_DEFINE_LEVEL(0x004, 'i'),
 			/**
 			 * Designates potentially harmful situations.
 			 */
-			Warning = IRSTD_LOGGER_DEFINE_LEVEL(0x0008, 'w'),
+			Warning = IRSTD_LOGGER_DEFINE_LEVEL(0x008, 'w'),
 			/**
 			 * Designates error events that might still allow the application to continue running.
+			 * This level and above levels cannot be masked (hence they will always be displayed).
 			 */
-			Error = IRSTD_LOGGER_DEFINE_LEVEL(0x0010, 'e'),
+			Error = IRSTD_LOGGER_DEFINE_LEVEL(0x010, 'e', IRSTD_LOGGER_NON_MASKABLE),
 			/**
 			 * Designates very severe error events that will presumably lead the application to abort.
 			 */
-			Fatal = IRSTD_LOGGER_DEFINE_LEVEL(0x0020, 'f')
+			Fatal = IRSTD_LOGGER_DEFINE_LEVEL(0x020, 'f', IRSTD_LOGGER_NON_MASKABLE)
 		};
 
 		struct Info
@@ -104,7 +117,7 @@ namespace IrStd
 			const size_t m_line;
 			const char* const m_file;
 			const char* const m_func;
-			timeval m_time;
+			Type::Timestamp m_time;
 		};
 
 		/**
@@ -114,6 +127,7 @@ namespace IrStd
 		{
 		public:
 			virtual void header(std::ostream& out, const Info& info) const = 0;
+			virtual void body(std::ostream& out, const std::string& str) const = 0;
 			virtual void tail(std::ostream& out) const = 0;
 		};
 
@@ -121,6 +135,7 @@ namespace IrStd
 		{
 		public:
 			void header(std::ostream& out, const Info& info) const;
+			void body(std::ostream& out, const std::string& str) const;
 			void tail(std::ostream& out) const;
 		};
 
@@ -128,6 +143,7 @@ namespace IrStd
 		{
 		public:
 			void header(std::ostream& out, const Info& info) const;
+			void body(std::ostream& out, const std::string& str) const;
 			void tail(std::ostream& out) const;
 		};
 
@@ -150,6 +166,8 @@ namespace IrStd
 
 			void operator=(const Filter& filter)
 			{
+				std::lock_guard<std::mutex> lock1(m_mutex);
+				std::lock_guard<std::mutex> lock2(filter.m_mutex);
 				m_minLevel = filter.m_minLevel;
 				m_topics = filter.m_topics;
 			}
@@ -163,7 +181,7 @@ namespace IrStd
 			{
 				// Cannot print any logs as it make use of the logger which is currenlty
 				// deleting all its topics. Accessing 
-				IRSTD_SCOPE_THREAD(scope, IrStdMemoryNoTrace);
+				IRSTD_SCOPE(scope, IrStd::Flag::IrStdMemoryNoTrace);
 				std::lock_guard<std::mutex> lock(m_mutex);
 				m_topics.clear();
 			}
@@ -172,13 +190,19 @@ namespace IrStd
 			{
 				// Cannot print any logs as it make use of the logger which is locked
 				// as it is currenlty accessing the filter object
-				IRSTD_SCOPE_THREAD(scope, IrStdMemoryNoTrace);
+				IRSTD_SCOPE(scope, IrStd::Flag::IrStdMemoryNoTrace);
 				std::lock_guard<std::mutex> lock(m_mutex);
 				m_topics.insert(topic.getRef());
 			}
 
 			bool isIgnored(const Level level, const TopicImpl& topic) noexcept
 			{
+				// Check if this is non maskable
+				if (static_cast<uint32_t>(level) & IRSTD_LOGGER_NON_MASKABLE
+						&& m_minLevel <= level)
+				{
+					return false;
+				}
 				// Filter on level
 				if (m_minLevel > level)
 				{
@@ -197,7 +221,7 @@ namespace IrStd
 		private:
 			Level m_minLevel;
 			std::set<TopicImpl::Ref> m_topics;
-			std::mutex m_mutex;
+			mutable std::mutex m_mutex;
 		};
 
 		/**
@@ -209,11 +233,13 @@ namespace IrStd
 			 * Constructors
 			 */
 			Stream(std::ostream& os)
-					: Stream(os, &FormatDefault::getInstance(), Filter())
+					: Stream(os, &FormatDefault::getInstance())
 			{
 			}
 			Stream(std::ostream& os, const Format* const pFormat)
-					: Stream(os, pFormat, Filter())
+					: m_os(os)
+					, m_pFormat(pFormat)
+					, m_hasFilter(false)
 			{
 			}
 			Stream(std::ostream& os, const Filter& filter)
@@ -221,21 +247,17 @@ namespace IrStd
 			{
 			}
 			Stream(std::ostream& os, const Format* const pFormat, const Filter& filter)
-					: m_os(os), m_pFormat(pFormat), m_filter(filter)
-			{
-			}
-
-			/**
-			 * Copy constructors
-			 */
-			Stream(const Stream& stream)
-					: m_os(stream.m_os), m_pFormat(stream.m_pFormat), m_filter(stream.m_filter)
+					: m_os(os)
+					, m_pFormat(pFormat)
+					, m_filter(filter)
+					, m_hasFilter(true)
 			{
 			}
 
 			std::ostream& m_os;
 			const Format* const m_pFormat;
 			Filter m_filter;
+			const bool m_hasFilter;
 		};
 
 		typedef std::vector<Stream> StreamList;
@@ -248,7 +270,7 @@ namespace IrStd
 			 * 
 			 */
 			explicit OutputStream(const OutputStream& os) = default;
-			OutputStream(StreamList& streamList, const Info& info);
+			OutputStream(const Filter m_filter, StreamList& streamList, const Info& info);
 
 			/**
 			 * Move constructor
@@ -267,7 +289,15 @@ namespace IrStd
 				return *this;
 			}
 
+			template<typename T>
+			OutputStream& operator<<(T& in)
+			{
+				m_bufferStream << in;
+				return *this;
+			}
+
 		private:
+			Filter m_filter;
 			StreamList& m_streamList;
 			const Info m_info;
 
@@ -341,7 +371,12 @@ namespace IrStd
 				const Level level, Logger& logger, const TopicImpl& topic = IrStd::Topic::None);
 
 	private:
+		friend Bootstrap;
+
+		static void disable() noexcept;
+
 		StreamList m_streamList;
 		Filter m_filter;
+		static bool m_globalEnable;
 	};
 }

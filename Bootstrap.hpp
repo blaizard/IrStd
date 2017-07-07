@@ -1,10 +1,11 @@
 #pragma once
-// This file must be included only once
 
 #include <signal.h>
+#include <iostream>
 
 #include "Utils.hpp"
 #include "Compiler.hpp"
+#include "Streambuf.hpp"
 
 namespace IrStd
 {
@@ -23,8 +24,11 @@ namespace IrStd
 
 		static void onTerminate() noexcept;
 		static void sigHandler(int sig, siginfo_t *info, void *secret);
+		static void sigHandlerThread(int sig, siginfo_t *info, void *secret);
 		static const char* getSigDescription(int sig);
 
 		struct sigaction m_sa;
+		Streambuf::Circular m_loggerStreamBuf;
+		std::ostream m_loggerStream;
 	};
 }

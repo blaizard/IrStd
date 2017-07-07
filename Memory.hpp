@@ -6,6 +6,7 @@
 
 #include "Allocator.hpp"
 #include "Utils.hpp"
+#include "Bootstrap.hpp"
 
 #define IRSTD_MEMORY_DUMP_STREAM() \
 		std::dec << "current=" << IrStd::Memory::getInstance().getStatCurrent() \
@@ -53,8 +54,15 @@ namespace IrStd
 		friend void* ::operator new(size_t, const std::nothrow_t&) noexcept;
 		friend void ::operator delete(void* ptr);
 		friend SingletonImpl<Memory>;
+		friend Bootstrap;
 
 		Memory();
+
+		/**
+		 * Disable the memory allocator. This cannot be undone,
+		 * and should be used in critical situation only.
+		 */
+		static void disable() noexcept;
 
 		void* newImpl(size_t size) noexcept;
 		void deleteImpl(void* ptr) noexcept;
@@ -63,10 +71,11 @@ namespace IrStd
 		using MapAllocBypass = std::map<Key, T, std::less<Key>, IrStd::AllocatorObj<std::pair<const Key, T>, AllocatorRaw>>;
 		MapAllocBypass<void*, size_t> m_allocMap;
 
-		std::mutex m_mutexAlloxMap;
+		std::mutex m_mutexAllocMap;
 		std::atomic<size_t> m_allocStatPeak;
 		std::atomic<size_t> m_allocStatCurrent;
 		std::atomic<size_t> m_allocStatNbNew;
 		std::atomic<size_t> m_allocStatNbDelete;
+		static bool m_enable;
 	};
 }

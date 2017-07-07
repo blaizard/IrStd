@@ -27,6 +27,45 @@ TEST_F(ExceptionTest, testSimple) {
 	{
 		ASSERT_TRUE(validateOutput(e.what(), "test"));
 	}
+
+	// rethrow
+	try
+	{
+		try
+		{
+			IRSTD_THROW("test");
+		}
+		catch (const IrStd::Exception& e)
+		{
+			IrStd::Exception::rethrow();
+		}
+	}
+	catch (const IrStd::Exception& e)
+	{
+		ASSERT_TRUE(e.getNext() == nullptr);
+	}
+
+	// rethrow std::exception
+	try
+	{
+		try
+		{
+			throw std::bad_alloc();
+		}
+		catch (...)
+		{
+			IrStd::Exception::rethrow();
+		}
+	}
+	catch (const IrStd::Exception& e)
+	{
+		ASSERT_TRUE(validateOutput(e.what(), "wrapper"));
+		const auto pE2 = e.getNext();
+		ASSERT_TRUE(pE2);
+		ASSERT_TRUE(validateOutput(pE2->what(), "bad_alloc"));
+		const auto pE3 = pE2.getNext();
+		ASSERT_TRUE(!pE3);
+	}
 }
 
 // ---- ExceptionTest::testChained --------------------------------------------
@@ -112,7 +151,7 @@ TEST_F(ExceptionTest, testRetry) {
 		ASSERT_TRUE(e.isAllowRetry() == true);
 	}
 
-	// rethrow
+	// rethrow retry
 	try
 	{
 		try
@@ -131,7 +170,7 @@ TEST_F(ExceptionTest, testRetry) {
 		ASSERT_TRUE(e.getNext() == nullptr);
 	}
 
-	// rethrow std::exception
+	// rethrow retry std::exception
 	try
 	{
 		try
@@ -146,7 +185,7 @@ TEST_F(ExceptionTest, testRetry) {
 	catch (const IrStd::Exception& e)
 	{
 		ASSERT_TRUE(e.isAllowRetry() == true);
-		ASSERT_TRUE(validateOutput(e.what(), "Retry wrapper"));
+		ASSERT_TRUE(validateOutput(e.what(), "wrapper"));
 		const auto pE2 = e.getNext();
 		ASSERT_TRUE(pE2);
 		ASSERT_TRUE(validateOutput(pE2->what(), "bad_alloc"));

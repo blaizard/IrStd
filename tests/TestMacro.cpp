@@ -13,7 +13,8 @@ class MacroTest : public IrStd::Test
 {
 };
 
-TEST_F(MacroTest, testIsEmpty) {
+TEST_F(MacroTest, testIsEmpty)
+{
 	// IRSTD_IS_EMPTY
 	ASSERT_TRUE(IRSTD_IS_EMPTY() == 1);
 	ASSERT_TRUE(IRSTD_IS_EMPTY(a) == 0);
@@ -26,14 +27,16 @@ TEST_F(MacroTest, testIsEmpty) {
 	ASSERT_TRUE(IRSTD_IS_EMPTY_X(78, -1, a) == -1);
 }
 
-TEST_F(MacroTest, testQuote) {
+TEST_F(MacroTest, testQuote)
+{
 	// IRSTD_QUOTE
 	ASSERT_TRUE(strcmp(IRSTD_QUOTE(), "") == 0);
 	ASSERT_TRUE(strcmp(IRSTD_QUOTE(dummy), "dummy") == 0);
 	ASSERT_TRUE(strcmp(IRSTD_QUOTE("dummy"), "\"dummy\"") == 0);
 }
 
-TEST_F(MacroTest, testNArgs) {
+TEST_F(MacroTest, testNArgs)
+{
 	// IRSTD_NARGS
 	ASSERT_TRUE(IRSTD_NARGS() == 0);
 	ASSERT_TRUE(IRSTD_NARGS(a) == 1);
@@ -42,7 +45,8 @@ TEST_F(MacroTest, testNArgs) {
 	ASSERT_TRUE(IRSTD_NARGS("a, b") == 1);
 }
 
-TEST_F(MacroTest, testGetMacro) {
+TEST_F(MacroTest, testGetMacro)
+{
 	// IRSTD_GET_MACRO
 	ASSERT_TRUE(TEST_MACRO_SUM(1, 2, 3) == 6);
 	ASSERT_TRUE(TEST_MACRO_SUM(1, 2) == 3);
@@ -50,9 +54,20 @@ TEST_F(MacroTest, testGetMacro) {
 	ASSERT_TRUE(TEST_MACRO_SUM() == 0);
 }
 
-TEST_F(MacroTest, testPaste) {
+TEST_F(MacroTest, testPaste)
+{
 	// IRSTD_PASTE
 	ASSERT_TRUE(IRSTD_PASTE(1, 2) == 12);
 	ASSERT_TRUE(IRSTD_PASTE(1, 2, 3) == 123);
 	ASSERT_TRUE(strcmp(IRSTD_PASTE(TEST_, DUMMY), "dummy") == 0);
+}
+
+TEST_F(MacroTest, testAssertType)
+{
+	float testFloat;
+	int testInt;
+
+	ASSERT_TRUE(IRSTD_TYPEOF(testFloat, float));
+	ASSERT_TRUE(!IRSTD_TYPEOF(testInt, float));
+	ASSERT_TRUE(IRSTD_TYPEOF(testInt, float, int));
 }

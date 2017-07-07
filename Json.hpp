@@ -35,8 +35,12 @@ namespace IrStd
 	{
 	public:
 		Json(const char* const str);
-		void print(std::ostream& out) const;
+		void toStream(std::ostream& out) const;
 
+		/**
+		 * \brief Data types for a Json object
+		 * \{
+		 */
 		// Forward declaration
 		class Object;
 		class Array;
@@ -44,10 +48,16 @@ namespace IrStd
 		class Number;
 		class Bool;
 		class Null;
+		/// \}
 
 		class Type : public rapidjson::Value
 		{
 		public:
+			static constexpr const char* toString() noexcept
+			{
+				return "Type";
+			}
+
 			template <class T, typename... A>
 			bool is(A&&... a)
 			{
@@ -55,16 +65,27 @@ namespace IrStd
 				return (!pElt || !static_cast<T*>(pElt)->is()) ? false : true;
 			}
 
+			/**
+			 * \brief Access an element of supported data types
+			 *
+			 * \param [...] Optional item names (const char*)
+			 */
 			template <class T, typename... A>
 			T& get(A&&... a)
 			{
 				rapidjson::Value* pElt = checkAndGet(this, {std::forward<A>(a)...});
-				if (!pElt || !static_cast<T*>(pElt)->is())
+				if (!pElt)
 				{
-					IRSTD_THROW(IrStd::Topic::IrStdJson, "Cannot access element");
+					IRSTD_THROW(IrStd::Topic::IrStdJson, "Cannot access element '" << pElt << "'");
+				}
+				if (!static_cast<T*>(pElt)->is())
+				{
+					IRSTD_THROW(IrStd::Topic::IrStdJson, "Element '" << pElt << "' is not of type '" << T::toString() << "'");
 				}
 				return static_cast<T&>(*pElt);
 			}
+
+
 
 			IRSTD_JSON_TYPE_HELPER(Object);
 			IRSTD_JSON_TYPE_HELPER(Array);
@@ -123,6 +144,10 @@ namespace IrStd
 		{
 		public:
 			bool is() const noexcept;
+			static constexpr const char* toString() noexcept
+			{
+				return "Array";
+			}
 		};
 
 		class String : public Type
@@ -132,6 +157,10 @@ namespace IrStd
 			const char* val() const noexcept;
 			void val(const char* const str, const size_t length) noexcept;
 			size_t len() const noexcept;
+			static constexpr const char* toString() noexcept
+			{
+				return "String";
+			}
 		};
 
 		class Number : public Type
@@ -140,6 +169,10 @@ namespace IrStd
 			bool is() const noexcept;
 			double val() const noexcept;
 			void val(const double n) noexcept;
+			static constexpr const char* toString() noexcept
+			{
+				return "Number";
+			}
 		};
 
 		class Bool : public Type
@@ -148,12 +181,20 @@ namespace IrStd
 			bool is() const noexcept;
 			bool val() const noexcept;
 			void val(const bool value) noexcept;
+			static constexpr const char* toString() noexcept
+			{
+				return "Bool";
+			}
 		};
 
 		class Null : public Type
 		{
 		public:
 			bool is() const noexcept;
+			static constexpr const char* toString() noexcept
+			{
+				return "Null";
+			}
 		};
 
 		template <class T, typename... A>
@@ -167,9 +208,13 @@ namespace IrStd
 		T& get(A&&... a)
 		{
 			rapidjson::Value* pElt = checkAndGet({std::forward<A>(a)...});
-			if (!pElt || !static_cast<T*>(pElt)->is())
+			if (!pElt)
 			{
-				IRSTD_THROW(IrStd::Topic::IrStdJson, "Cannot access element");
+				IRSTD_THROW(IrStd::Topic::IrStdJson, "Cannot access element '" << pElt << "'");
+			}
+			if (!static_cast<T*>(pElt)->is())
+			{
+				IRSTD_THROW(IrStd::Topic::IrStdJson, "Element '" << pElt << "' is not of type " << T::toString());
 			}
 			return static_cast<T&>(*pElt);
 		}
