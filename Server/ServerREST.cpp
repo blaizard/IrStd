@@ -425,4 +425,4 @@ std::pair<const size_t, const IrStd::ServerREST::Node*> IrStd::ServerREST::Node:
 	}
 
 	return {0, nullptr};
-} 
+}
