@@ -406,4 +406,4 @@ TEST_F(ServerTest, testServerREST)
 	}
 
 	serverData.stop();
-} 
+}
