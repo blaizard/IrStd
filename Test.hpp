@@ -1,13 +1,14 @@
 #include <iostream>
+#include <string>
 
 // Include gtest API
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Waggregate-return"
-#pragma GCC diagnostic ignored "-Werror"
 #include "gtest/gtest.h"
 #pragma GCC diagnostic pop
 #pragma GCC diagnostic ignored "-Wstrict-overflow"
 
+#include "Memory.hpp"
 #include "Rand.hpp"
 
 #define IRSTD_TEST_REGEX_EOL "\\r?\\n"
@@ -17,7 +18,7 @@ namespace IrStd
 	class Test : public ::testing::Test
 	{
 	public:
-		static void print(const char* const output);
+		static void print(const std::string& output);
 
 	protected:
 		Test();
@@ -63,6 +64,7 @@ namespace IrStd
 
 	private:
 		std::ostream& m_cout;
+		IrStd::Memory::StatisticsScope m_statisticsScope;
 
 		bool validateCondition(const bool isMatch, const char* const header, const char* const output, const bool expectSuccess)
 		{

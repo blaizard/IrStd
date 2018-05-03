@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cxxabi.h>
+#include <sstream>
 
 #include "Allocator.hpp"
 
@@ -45,6 +46,8 @@
 	19,18,17,16,15,14,13,12,11,10, \
 	9,8,7,6,5,4,3,2,IRSTD_IS_EMPTY_X(0, 1, x),0
 
+
+
 /**
  * \brief Call a specific macro based on the number of arguments.
  */
@@ -60,29 +63,56 @@
 #define _IRSTD_PASTE3(a, b, c) a ## b ## c
 #define _IRSTD_PASTE4(a, b, c, d) a ## b ## c ## d
 #define _IRSTD_PASTE5(a, b, c, d, e) a ## b ## c ## d ## e
+#define _IRSTD_PASTE6(a, b, c, d, e, f) a ## b ## c ## d ## e ## f
+#define _IRSTD_PASTE7(a, b, c, d, e, f, g) a ## b ## c ## d ## e ## f ## g
 
 /**
- * \brief Check if a variable is of a certain type
+ * \brief Check if a type is of a certain type
  */
-#define IRSTD_TYPEOF(variable, ...) \
-	(IRSTD_GET_MACRO(_IRSTD_TYPEOF, __VA_ARGS__)(variable, __VA_ARGS__))
-#define _IRSTD_TYPEOF1(variable, refType1) std::is_same<decltype(variable), refType1>::value
-#define _IRSTD_TYPEOF2(variable, refType1, ...) _IRSTD_TYPEOF1(variable, refType1) || _IRSTD_TYPEOF1(variable, __VA_ARGS__)
-#define _IRSTD_TYPEOF3(variable, refType1, ...) _IRSTD_TYPEOF1(variable, refType1) || _IRSTD_TYPEOF2(variable, __VA_ARGS__)
-#define _IRSTD_TYPEOF4(variable, refType1, ...) _IRSTD_TYPEOF1(variable, refType1) || _IRSTD_TYPEOF3(variable, __VA_ARGS__)
-#define _IRSTD_TYPEOF5(variable, refType1, ...) _IRSTD_TYPEOF1(variable, refType1) || _IRSTD_TYPEOF4(variable, __VA_ARGS__)
-#define _IRSTD_TYPEOF6(variable, refType1, ...) _IRSTD_TYPEOF1(variable, refType1) || _IRSTD_TYPEOF5(variable, __VA_ARGS__)
-#define _IRSTD_TYPEOF7(variable, refType1, ...) _IRSTD_TYPEOF1(variable, refType1) || _IRSTD_TYPEOF6(variable, __VA_ARGS__)
-#define _IRSTD_TYPEOF8(variable, refType1, ...) _IRSTD_TYPEOF1(variable, refType1) || _IRSTD_TYPEOF7(variable, __VA_ARGS__)
+#define IRSTD_TYPEOF(type, ...) \
+	(IRSTD_GET_MACRO(_IRSTD_TYPEOF, __VA_ARGS__)(type, __VA_ARGS__))
+#define _IRSTD_TYPEOF1(type, refType1) std::is_same<type, refType1>::value
+#define _IRSTD_TYPEOF2(type, refType1, ...) _IRSTD_TYPEOF1(type, refType1) || _IRSTD_TYPEOF1(type, __VA_ARGS__)
+#define _IRSTD_TYPEOF3(type, refType1, ...) _IRSTD_TYPEOF1(type, refType1) || _IRSTD_TYPEOF2(type, __VA_ARGS__)
+#define _IRSTD_TYPEOF4(type, refType1, ...) _IRSTD_TYPEOF1(type, refType1) || _IRSTD_TYPEOF3(type, __VA_ARGS__)
+#define _IRSTD_TYPEOF5(type, refType1, ...) _IRSTD_TYPEOF1(type, refType1) || _IRSTD_TYPEOF4(type, __VA_ARGS__)
+#define _IRSTD_TYPEOF6(type, refType1, ...) _IRSTD_TYPEOF1(type, refType1) || _IRSTD_TYPEOF5(type, __VA_ARGS__)
+#define _IRSTD_TYPEOF7(type, refType1, ...) _IRSTD_TYPEOF1(type, refType1) || _IRSTD_TYPEOF6(type, __VA_ARGS__)
+#define _IRSTD_TYPEOF8(type, refType1, ...) _IRSTD_TYPEOF1(type, refType1) || _IRSTD_TYPEOF7(type, __VA_ARGS__)
 
 /**
  * \brief Usefull function for debugging
  */
-#define IRSTD_DEBUG_TYPE(variable) getVariableType(variable)
+#define IRSTD_DEBUG_TYPE(variable) IrStd::getVariableType(variable)
+
+/**
+ * \brief Limit the rate to a code path to a time in milliseconds
+ */
+#define IRTSD_LIMIT_RATE_MS(maxRateMs) \
+	{ \
+		static IrStd::Type::Timestamp __previousCall{0}; \
+		const auto __delaySinceLastCall = IrStd::Type::Timestamp::now() - __previousCall; \
+		if (__delaySinceLastCall < IrStd::Type::Timestamp::ms(maxRateMs)) \
+		{ \
+			std::this_thread::sleep_for(std::chrono::milliseconds(IrStd::Type::Timestamp::ms(maxRateMs) - __delaySinceLastCall)); \
+		} \
+		__previousCall = IrStd::Type::Timestamp::now(); \
+	}
 
 namespace IrStd
 {
 	bool almostEqual(const double a, const double b) noexcept;
+
+	template<class T>
+	std::string arrayJoin(const T& array, const char* const separator = ", ")
+	{
+		std::stringstream strStream;
+		for (auto it = array.begin(); it != array.end(); it++)
+		{
+			strStream << ((it == array.begin()) ? "" : separator) << *it;
+		}
+		return strStream.str();
+	}
 
 	template<class T>
 	std::string getVariableType(const T& variable)

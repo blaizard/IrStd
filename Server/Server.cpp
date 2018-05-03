@@ -3,7 +3,8 @@
 #include "../Logger.hpp"
 #include "../Server.hpp"
 
-IRSTD_TOPIC_REGISTER(IrStdServer);
+IRSTD_TOPIC_REGISTER(IrStd, Server);
+IRSTD_TOPIC_USE_ALIAS(IrStdServer, IrStd, Server);
 
 // ---- IrStd::ClientInfo -----------------------------------------------------
 

@@ -67,7 +67,11 @@ TEST_F(MacroTest, testAssertType)
 	float testFloat;
 	int testInt;
 
-	ASSERT_TRUE(IRSTD_TYPEOF(testFloat, float));
-	ASSERT_TRUE(!IRSTD_TYPEOF(testInt, float));
-	ASSERT_TRUE(IRSTD_TYPEOF(testInt, float, int));
+	ASSERT_TRUE(IRSTD_TYPEOF(float, float));
+	ASSERT_TRUE(!IRSTD_TYPEOF(int, float));
+	ASSERT_TRUE(IRSTD_TYPEOF(int, float, int));
+
+	ASSERT_TRUE(IRSTD_TYPEOF(decltype(testFloat), float));
+	ASSERT_TRUE(!IRSTD_TYPEOF(decltype(testInt), float));
+	ASSERT_TRUE(IRSTD_TYPEOF(decltype(testInt), float, int));
 }

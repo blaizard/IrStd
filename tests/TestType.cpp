@@ -111,8 +111,14 @@ TEST_F(TypeTest, testToString)
 			ASSERT_TRUE(!strcmp(buffer, "1.12")) << "str='" << buffer << "'";
 		}
 		{
-			ASSERT_TRUE(IrStd::Type::doubleToString(buffer, 10, -1.234) == 7);
+			ASSERT_TRUE(IrStd::Type::doubleToString(buffer, 10, -1.234) == 7)
+					<< "str='" << buffer << "'";
 			ASSERT_TRUE(!strcmp(buffer, "-1.234")) << "str='" << buffer << "'";
+		}
+		{
+			ASSERT_TRUE(IrStd::Type::doubleToString(buffer, 10, -0.234) == 7)
+					<< "str='" << buffer << "'";
+			ASSERT_TRUE(!strcmp(buffer, "-0.234")) << "str='" << buffer << "'";
 		}
 		{
 			ASSERT_TRUE(IrStd::Type::doubleToString(buffer, 5, -1.1234) == 5);
@@ -126,6 +132,41 @@ TEST_F(TypeTest, testToString)
 			ASSERT_TRUE(IrStd::Type::doubleToString(buffer, 10, 0.001) == 6);
 			ASSERT_TRUE(!strcmp(buffer, "0.001")) << "str='" << buffer << "'";
 		}
+		{
+			ASSERT_TRUE(IrStd::Type::doubleToString(buffer, 10, 63.0994, 2) == 5);
+			ASSERT_TRUE(!strcmp(buffer, "63.1")) << "str='" << buffer << "'";
+		}
+		{
+			ASSERT_TRUE(IrStd::Type::doubleToString(buffer, 10, 63.9921875, 2) == 6)
+					<< "str='" << buffer << "'";
+			ASSERT_TRUE(!strcmp(buffer, "63.99")) << "str='" << buffer << "'";
+		}
+		{
+			ASSERT_TRUE(IrStd::Type::doubleToString(buffer, 10, 63.9991875, 2) == 3);
+			ASSERT_TRUE(!strcmp(buffer, "64")) << "str='" << buffer << "'";
+		}
+		{
+			ASSERT_TRUE(IrStd::Type::doubleToString(buffer, 10, 1.0050001, 2) == 5)
+					<< "str='" << buffer << "'";
+			ASSERT_TRUE(!strcmp(buffer, "1.01")) << "str='" << buffer << "'";
+		}
+		{
+			ASSERT_TRUE(IrStd::Type::doubleToString(buffer, 10, 1.0049999999, 2) == 2)
+					<< "str='" << buffer << "'";
+			ASSERT_TRUE(!strcmp(buffer, "1")) << "str='" << buffer << "'";
+		}
+		{
+			ASSERT_TRUE(IrStd::Type::doubleToString(buffer, 10, 1.1002, 3) == 4)
+					<< "str='" << buffer << "'";
+			ASSERT_TRUE(!strcmp(buffer, "1.1")) << "str='" << buffer << "'";
+		}
+
+		{
+			ASSERT_TRUE(IrStd::Type::doubleToString(buffer, 10, 13.54829969, 6) == 8)
+					<< "str='" << buffer << "'";
+			ASSERT_TRUE(!strcmp(buffer, "13.5483")) << "str='" << buffer << "'";
+		}
+
 		// IrStd::TypeFormat::FLAG_FLOOR
 		{
 			ASSERT_TRUE(IrStd::Type::doubleToString(buffer, 10, 1.56, 1, IrStd::TypeFormat::FLAG_FLOOR) == 4);
@@ -140,6 +181,12 @@ TEST_F(TypeTest, testToString)
 		{
 			ASSERT_TRUE(IrStd::Type::doubleToString(buffer, 10, 1.56, 1, IrStd::TypeFormat::FLAG_ROUND) == 4);
 			ASSERT_TRUE(!strcmp(buffer, "1.6")) << "str='" << buffer << "'";
+		}
+
+		// Huge number (overflow)
+		{
+			IrStd::Type::doubleToString(buffer, 10, 14448794754544874.15454849877, 1);
+			ASSERT_TRUE(!strcmp(buffer, "754544874")) << "str='" << buffer << "'";
 		}
 	}
 	// float
@@ -161,7 +208,38 @@ TEST_F(TypeTest, testToString)
 		ASSERT_TRUE(!strcmp(str2, "-12.548993")) << "str='" << str2 << "'";
 		const auto str3 = IrStd::Type::ShortString(static_cast<double>(0));
 		ASSERT_TRUE(!strcmp(str3, "0")) << "str='" << str3 << "'";
-		const auto str4 = IrStd::Type::ShortString(static_cast<double>(-1.123456789), 9);
-		ASSERT_TRUE(!strcmp(str4, "-1.123456789")) << "str='" << str4 << "'";
+		const auto str4 = IrStd::Type::ShortString(static_cast<double>(-1.123456789), 5);
+		ASSERT_TRUE(!strcmp(str4, "-1.12346")) << "str='" << str4 << "'";
+	}
+}
+
+TEST_F(TypeTest, testGson)
+{
+	std::stringstream stream;
+	{
+		IrStd::Type::Gson gson(15);
+		gson.toStream(stream);
+	}
+	{
+		IrStd::Type::Gson gson(true);
+		gson.toStream(stream);
+	}
+	{
+		IrStd::Type::Gson gson;
+		gson.toStream(stream);
+	}
+	{
+		IrStd::Type::Gson gson({0, 15, 2, true, false});
+		gson.toStream(stream);
+	}
+	{
+		IrStd::Type::Gson gson(
+			IrStd::Type::Gson::Map
+			{
+				{"0", 45845},
+				{"4554", true}
+			}
+		);
+		gson.toStream(stream);
 	}
 }

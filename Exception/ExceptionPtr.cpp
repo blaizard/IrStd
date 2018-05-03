@@ -84,6 +84,40 @@ bool IrStd::ExceptionPtr::isException() const noexcept
 	return (m_pStd) ? true : false;
 }
 
+void IrStd::ExceptionPtr::toStream(std::ostream& out) const noexcept
+{
+	const std::function<void (const IrStd::ExceptionPtr, const bool)> printRec
+			= [&](const IrStd::ExceptionPtr pE, const bool isFirst)
+	{
+		IRSTD_ASSERT(pE, "ExceptionPtr passed into argument is null");
+
+		if (!isFirst)
+		{
+			out << ": ";
+		}
+
+		if (pE.isIrStdException())
+		{
+			const auto& e = pE.getIrStdException();
+			out << e.what();
+		}
+		else
+		{
+			IRSTD_ASSERT(pE.isException(), "The exception must be of type std::exception");
+			const auto& e = pE.getException();
+			out << e.what();
+		}
+
+		// Handle chained exceptions
+		if (auto pNexE = pE.getNext())
+		{
+			printRec(pNexE, false);
+		}
+	};
+
+	printRec(*this, true);
+}
+
 const IrStd::Exception& IrStd::ExceptionPtr::getIrStdException() const
 {
 	IRSTD_THROW_ASSERT(m_pIrstd, "This exception is not of type IrStd::Exception");

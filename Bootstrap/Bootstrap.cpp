@@ -27,7 +27,8 @@
 
 #define SIGNAL_THREAD SIGUSR2
 
-IRSTD_TOPIC_REGISTER(IrStdBootstrap, "IrStdBoot");
+IRSTD_TOPIC_REGISTER(IrStd, Bootstrap);
+IRSTD_TOPIC_USE_ALIAS(IrStdBootstrap, IrStd, Bootstrap);
 IRSTD_SCOPE_USE(IrStdMemoryNoTrace);
 
 IrStd::Bootstrap::Bootstrap()
@@ -53,12 +54,12 @@ IrStd::Bootstrap::Bootstrap()
 	// Add a stream for debug
 	{
 		Logger::Filter filter;
-		filter.allTopics();
+		filter.setLevel(Logger::Level::Trace);
 		Logger::Stream stream(m_loggerStream, filter);
 		Logger::getDefault().addStream(stream);
 	}
 
-	IRSTD_LOG(IrStd::Topic::IrStdBootstrap, "Bootstrap initialized");
+	IRSTD_LOG_TRACE(IrStdBootstrap, "Bootstrap initialized");
 }
 
 void IrStd::Bootstrap::onTerminate() noexcept
@@ -188,9 +189,14 @@ void IrStd::Bootstrap::sigHandlerThread(int sig, siginfo_t* info, void* secret)
 
 void IrStd::Bootstrap::sigHandler(int sig, siginfo_t* info, void* /*secret*/)
 {
-	const char* const description = getSigDescription(sig);
 	static std::mutex mutex;
-	std::lock_guard<std::mutex> lock(mutex);
+	// Ignore the sign handler if it is called concurrently. This can happen if
+	// it is called within the exception handler.
+	std::unique_lock<std::mutex> lock(mutex, std::try_to_lock);
+	if (!lock.owns_lock())
+	{
+		return;
+	}
 
 	// Disable the memory manager to prevent any lock while accessing malloc
 	IrStd::Memory::disable();
@@ -202,8 +208,11 @@ void IrStd::Bootstrap::sigHandler(int sig, siginfo_t* info, void* /*secret*/)
 
 	// Print latest traces
 	{
-		std::cerr << std::endl << "Dump of last traces before crash:" << std::endl << "...";
+		std::cerr << std::endl
+				<< "*******************************************************************************"
+				<< std::endl << "Dump of last traces before crash:" << std::endl << "...";
 		getInstance().m_loggerStreamBuf.toStream(std::cerr);
+		std::cerr << IrStd::Type::Timestamp::now() << " <<<< CRASH >>>>" << std::endl;
 	}
 
 	// Print the exceptions
@@ -215,9 +224,13 @@ void IrStd::Bootstrap::sigHandler(int sig, siginfo_t* info, void* /*secret*/)
 
 	// Print the callstack
 	{
-		std::cerr << std::endl << "FATAL: Received SIGNAL " << std::dec << sig << description
-				<< ", faulty address is " << std::hex << std::showbase << info->si_addr << std::endl
-				<< "Callstack (" << std::this_thread::get_id() << "):" << std::endl;
+		const char* const description = getSigDescription(sig);
+		std::cerr << std::endl << "FATAL: Received SIGNAL " << std::dec << sig << description;
+		if (sig == SIGBUS || sig == SIGFPE || sig == SIGILL || sig == SIGSEGV || sig == SIGSYS)
+		{
+			std::cerr << ", faulty address is " << std::hex << std::showbase << info->si_addr;
+		}
+		std::cerr << std::endl << "Callstack (" << std::this_thread::get_id() << "):" << std::endl;
 		IrStd::Exception::callStack(std::cerr, /*skipFirstNb*/2);
 	}
 
@@ -238,7 +251,7 @@ void IrStd::Bootstrap::sigHandler(int sig, siginfo_t* info, void* /*secret*/)
 		for (auto& item : IrStd::Threads::getInstance().m_threadMap)
 		{
 			auto pThread = item.second;
-			if (pThread->isActive() || pThread->m_status == Thread::Status::TERMINATING)
+			if (pThread->isActive() || pThread->isIdle() || pThread->m_isTerminate)
 			{
 				// Kill the thread
 				if (!pThread->signal(SIGNAL_THREAD))
@@ -246,7 +259,7 @@ void IrStd::Bootstrap::sigHandler(int sig, siginfo_t* info, void* /*secret*/)
 					std::cerr << "Error while killing thread (" << *pThread << ")" << std::endl;
 				}
 				// Wait for the thread to be killed, if the timeout happens, print an error
-				if (!sigHandlerThreadCompleted.waitForNext(/*timeoutMs*/100))
+				if (!sigHandlerThreadCompleted.waitForNext(/*timeoutMs*/1000))
 				{
 					std::cerr << "Timeout while waiting for thread (" << *pThread << ") to terminate" << std::endl;
 				}

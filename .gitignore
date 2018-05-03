@@ -11,3 +11,6 @@ gtest
 rapidjson
 Json/rapidjson
 Test/googletest
+doc/
+latex/
+html/

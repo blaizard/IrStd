@@ -333,10 +333,10 @@ TEST_F(ServerTest, testServerREST)
 {
 	auto serverData = createServer<IrStd::ServerREST>(/*port*/12345);
 
-	serverData.getServer().addRoute("/api/v1/login/", [](IrStd::ServerREST::Context& context){
+	serverData.getServer().addRoute(IrStd::HTTPMethod::GET, "/api/v1/login/", [](IrStd::ServerREST::Context& context){
 		context.getResponse().setData("ok:1");
 	});
-	serverData.getServer().addRoute("/get/{INTEGER}", [](IrStd::ServerREST::Context& context){
+	serverData.getServer().addRoute(IrStd::HTTPMethod::GET, "/get/{INT}", [](IrStd::ServerREST::Context& context){
 		auto& response = context.getResponse();
 		response.setData("ok:2");
 
@@ -346,11 +346,11 @@ TEST_F(ServerTest, testServerREST)
 		response.addData(str.c_str());
 
 		// Add the string
-		auto integer = context.getMatchAsInteger(0);
+		auto integer = context.getMatchAsInt(0);
 		response.addData(" integer=");
 		response.addData(integer);
 	});
-	serverData.getServer().addRoute("/get/up/{STRING}/go", [](IrStd::ServerREST::Context& context){
+	serverData.getServer().addRoute(IrStd::HTTPMethod::GET, "/get/up/{STRING}/go", [](IrStd::ServerREST::Context& context){
 		auto& response = context.getResponse();
 		response.setData("ok:3");
 

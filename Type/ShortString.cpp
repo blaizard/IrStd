@@ -96,9 +96,15 @@ IrStd::Type::ShortString& IrStd::Type::ShortString::operator=(const ShortString&
 
 // ---- IrStd::Type::ShortString::operator ------------------------------------
 
-IrStd::Type::ShortString::operator const char*() const noexcept
+
+const char* IrStd::Type::ShortString::c_str() const noexcept
 {
 	return m_pString;
+}
+
+IrStd::Type::ShortString::operator const char*() const noexcept
+{
+	return c_str();
 }
 
 std::ostream& operator<<(std::ostream& os, const IrStd::Type::ShortString& str)

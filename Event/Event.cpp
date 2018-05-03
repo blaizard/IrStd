@@ -1,6 +1,8 @@
 #include "../Event.hpp"
+#include "../Thread.hpp"
 
-IRSTD_TOPIC_REGISTER(IrStdEvent);
+IRSTD_TOPIC_REGISTER(IrStd, Event);
+IRSTD_TOPIC_USE_ALIAS(IrStdEvent, IrStd, Event);
 
 // ---- IrStd::Event ----------------------------------------------------------
 
@@ -28,7 +30,7 @@ void IrStd::Event::trigger() noexcept
 	m_cv.notify_all();
 }
 
-size_t IrStd::Event::waitForNext(const uint64_t timeoutMs) noexcept
+size_t IrStd::Event::waitForNext(const uint64_t timeoutMs) const noexcept
 {
 	if (timeoutMs)
 	{
@@ -77,7 +79,7 @@ size_t IrStd::Event::waitForAtLeast(const size_t nbMinEvents) noexcept
 	return m_counter;
 }
 
-size_t IrStd::Event::waitForNextInternal(const size_t curCounter) noexcept
+size_t IrStd::Event::waitForNextInternal(const size_t curCounter) const noexcept
 {
 	{
 		std::unique_lock<std::mutex> lock(m_lock);
@@ -86,7 +88,7 @@ size_t IrStd::Event::waitForNextInternal(const size_t curCounter) noexcept
 			m_cv.wait(lock);
 			if (m_counter <= curCounter)
 			{
-				IRSTD_LOG_TRACE(IrStd::Topic::IrStdEvent, "Event (" << getName()
+				IRSTD_LOG_TRACE(IrStdEvent, "Event (" << getName()
 						<< ") was reset, returning from wait state. counter=" << m_counter);
 				return 0;
 			}

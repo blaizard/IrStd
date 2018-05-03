@@ -2,13 +2,15 @@
 
 #include <limits>
 
+#include "MimeType.hpp"
 #include "../Server.hpp"
+#include "../Json.hpp"
 
 namespace IrStd
 {
-	enum class HTTPMethod
+	enum class HTTPMethod : size_t
 	{
-		UNKNOWN = 0,
+		UNKNOWN,
 		OPTIONS,
 		GET,
 		HEAD,
@@ -16,7 +18,9 @@ namespace IrStd
 		PUT,
 		DELETE,
 		TRACE,
-		CONNECT
+		CONNECT,
+		// Special entity to determine the number of entries
+		COUNT
 	};
 
 	class ServerHTTP;
@@ -73,6 +77,7 @@ namespace IrStd
 			 * Set data to the response
 			 */
 			void setData(const Type::ShortString value);
+			void setData(const IrStd::Json& json);
 			void setData(const char* const data, const size_t size);
 
 			/**

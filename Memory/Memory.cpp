@@ -9,9 +9,18 @@
 #include "../Logger.hpp"
 #include "../Scope.hpp"
 #include "../Compiler.hpp"
+#include "../Utils.hpp"
 
-IRSTD_TOPIC_REGISTER(IrStdMemory);
+#if IRSTD_IS_PLATFORM(LINUX)
+	#include <sys/types.h>
+	#include <sys/sysinfo.h>
+#endif
+
+IRSTD_TOPIC_REGISTER(IrStd, Memory);
+IRSTD_TOPIC_USE_ALIAS(IrStdMemory, IrStd, Memory);
 IRSTD_SCOPE_LOCALTHREAD_REGISTER(IrStdMemoryNoTrace);
+
+#define IS_MEMORY_MONITOR (defined(IRSTD_IS_DEBUG) || (defined(IRSTD_MEMORY_MONITOR) && IRSTD_MEMORY_MONITOR))
 
 //#define IRSTDMEMORY_DEBUG 1
 
@@ -47,49 +56,44 @@ void operator delete(void* ptr) noexcept
 bool IrStd::Memory::m_enable = true;
 
 IrStd::Memory::Memory()
-		: m_allocStatPeak(0)
-		, m_allocStatCurrent(0)
-		, m_allocStatNbNew(0)
-		, m_allocStatNbDelete(0)
+		: m_statistics()
+		, m_pStatistics(&m_statistics)
 {
 }
+
 
 // ---- Statistics related  ---------------------------------------------------
 
-void IrStd::Memory::getStatistics(Statistics& stats) const noexcept
+IrStd::Memory::Statistics& IrStd::Memory::getStatistics() const noexcept
 {
-	// TODO: make this function atomic
-	stats.m_allocStatPeak = getStatPeak();
-	stats.m_allocStatCurrent = getStatCurrent();
-	stats.m_allocStatNbNew = getStatNbNew();
-	stats.m_allocStatNbDelete = getStatNbDelete();
+	return *m_pStatistics.load();
 }
 
-size_t IrStd::Memory::getStatCurrent() const noexcept
+IrStd::Type::Memory IrStd::Memory::getStatCurrent() const noexcept
 {
-	return m_allocStatCurrent.load();
+	return getStatistics().getStatCurrent();
 }
 
-size_t IrStd::Memory::getStatPeak() const noexcept
+IrStd::Type::Memory IrStd::Memory::getStatPeak() const noexcept
 {
-	return m_allocStatPeak.load();
+	return getStatistics().getStatPeak();
 }
 
 size_t IrStd::Memory::getStatNbNew() const noexcept
 {
-	return m_allocStatNbNew.load();
+	return getStatistics().getStatNbNew();
 }
 
 size_t IrStd::Memory::getStatNbDelete() const noexcept
 {
-	return m_allocStatNbDelete.load();
+	return getStatistics().getStatNbDelete();
 }
 
 void IrStd::Memory::disable() noexcept
 {
 	m_enable = false;
-#if IRSTD_IS_DEBUG
-	IRSTD_LOG_INFO(IrStd::Topic::IrStdMemory, "Disabled memory manager: " << IRSTD_MEMORY_DUMP_STREAM());
+#if IS_MEMORY_MONITOR
+	IRSTD_LOG_INFO(IrStdMemory, "Disabled memory manager: " << IRSTD_MEMORY_DUMP_STREAM());
 #endif
 }
 
@@ -101,11 +105,11 @@ void* IrStd::Memory::newImpl(size_t size) noexcept
 
 	if (ptr == nullptr)
 	{
-		IRSTD_LOG_ERROR(IrStd::Topic::IrStdMemory, "Memory allocation failed (size=" << size << ")");
+		IRSTD_LOG_ERROR(IrStdMemory, "Memory allocation failed (" << IrStd::Type::Memory(size) << " or " << size << ")");
 		return nullptr;
 	}
 
-#if IRSTD_IS_DEBUG
+#if IS_MEMORY_MONITOR
 	// Record this entry
 	{
 		IRSTD_SCOPE(IrStd::Flag::IrStdMemoryNoTrace);
@@ -113,19 +117,23 @@ void* IrStd::Memory::newImpl(size_t size) noexcept
 		{
 			std::lock_guard<std::mutex> lock(m_mutexAllocMap);
 			const auto ret = m_allocMap.insert(entry);
-			IRSTD_ASSERT(IrStd::Topic::IrStdMemory, ret.second, "Entry " << static_cast<void*>(ptr) << " already exists");
+			IRSTD_ASSERT(IrStdMemory, ret.second, "Entry " << static_cast<void*>(ptr) << " already exists");
 		}
-		m_allocStatCurrent.fetch_add(size);
-		m_allocStatPeak.store(std::max(getStatPeak(), getStatCurrent()));
-		m_allocStatNbNew++;
+		{
+			auto& stats = getStatistics();
+			stats.m_allocCurrent.fetch_add(size);
+			stats.m_allocPeak.store(std::max(stats.getStatPeakRaw(), stats.getStatCurrentRaw()));
+			stats.m_allocNbNew++;
+		}
 	}
 
-#if defined(IRSTDMEMORY_DEBUG)
+#if IS_MEMORY_MONITOR && defined(IRSTDMEMORY_DEBUG)
 	{
 		IRSTD_SCOPE(scope, IrStd::Flag::IrStdMemoryNoTrace);
 		if (scope.isActivator())
 		{
-			IRSTD_LOG_TRACE(IrStd::Topic::IrStdMemory, "Allocated (size=" << size
+			IRSTD_LOG_TRACE(IrStdMemory, "Allocated (size=" << size
+					<< " or " << IrStd::Type::Memory(size)
 					<< ", ptr=" << static_cast<void*>(ptr)
 					<< ", " << IRSTD_MEMORY_DUMP_STREAM() << ")");
 		}
@@ -142,32 +150,34 @@ void* IrStd::Memory::newImpl(size_t size) noexcept
 #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 void IrStd::Memory::deleteImpl(void* ptr) noexcept
 {
-#if IRSTD_IS_DEBUG
+#if IS_MEMORY_MONITOR
 	size_t size = 0;
 	// Update the records
 	{
 		IRSTD_SCOPE(IrStd::Flag::IrStdMemoryNoTrace);
+		auto& stats = getStatistics();
 		{
 			std::lock_guard<std::mutex> lock(m_mutexAllocMap);
 			const auto it = m_allocMap.find(ptr);
-			IRSTD_ASSERT(IrStd::Topic::IrStdMemory, it != m_allocMap.end(),
+			IRSTD_ASSERT(IrStdMemory, it != m_allocMap.end(),
 					"Unable to find ptr " << static_cast<void*>(ptr));
 			size = it->second;
-			m_allocStatCurrent.fetch_sub(it->second);
+			stats.m_allocCurrent.fetch_sub(it->second);
 			m_allocMap.erase(it);
 		}
-		m_allocStatNbDelete++;
+		stats.m_allocNbDelete++;
 	}
 #endif
 
 	std::free(ptr);
 
-#if IRSTD_IS_DEBUG && defined(IRSTDMEMORY_DEBUG)
+#if IS_MEMORY_MONITOR && defined(IRSTDMEMORY_DEBUG)
 	{
 		IRSTD_SCOPE(scope, IrStd::Flag::IrStdMemoryNoTrace);
 		if (scope.isActivator())
 		{
-			IRSTD_LOG_TRACE(IrStd::Topic::IrStdMemory, "Free      (size=" << size
+			IRSTD_LOG_TRACE(IrStdMemory, "Free      (size=" << size
+					<< " or " << IrStd::Type::Memory(size)
 					<< ", ptr=" << static_cast<void*>(ptr)
 					<< ", " << IRSTD_MEMORY_DUMP_STREAM() << ")");
 		}
@@ -175,3 +185,102 @@ void IrStd::Memory::deleteImpl(void* ptr) noexcept
 #endif
 }
 #pragma GCC diagnostic pop
+
+#if IRSTD_IS_PLATFORM(LINUX)
+
+// ---- IrStd::Memory::getVirtualMemory* --------------------------------------
+
+IrStd::Type::Memory IrStd::Memory::getVirtualMemoryTotal() const noexcept
+{
+	struct ::sysinfo memInfo;
+	::sysinfo(&memInfo);
+	IrStd::Type::Memory totalVirtualMem = memInfo.totalram;
+
+	totalVirtualMem += memInfo.totalswap;
+	totalVirtualMem *= memInfo.mem_unit;
+
+	return totalVirtualMem;
+}
+
+IrStd::Type::Memory IrStd::Memory::getVirtualMemoryTotalUsed() const noexcept
+{
+	struct ::sysinfo memInfo;
+	::sysinfo(&memInfo);
+	IrStd::Type::Memory virtualMemUsed = memInfo.totalram - memInfo.freeram;
+
+	virtualMemUsed += memInfo.totalswap - memInfo.freeswap;
+	virtualMemUsed *= memInfo.mem_unit;
+
+	return virtualMemUsed;
+}
+
+IrStd::Type::Memory IrStd::Memory::getVirtualMemoryCurrent() const noexcept
+{
+	FILE* file = ::fopen("/proc/self/status", "r");
+	IrStd::Type::Memory result = 0;
+	char line[128];
+	if (file)
+	{
+		while (::fgets(line, 128, file) != NULL)
+		{
+			if (::strncmp(line, "VmSize:", 7) == 0)
+			{
+				const char* p = line;
+				while (*p <'0' || *p > '9') p++;
+				line[::strlen(line) - 3] = '\0';
+				result = ::atoi(p);
+				break;
+			}
+		}
+		::fclose(file);
+	}
+	return result;
+}
+
+// ---- IrStd::Memory::getRAM* ------------------------------------------------
+
+IrStd::Type::Memory IrStd::Memory::getRAMTotal() const noexcept
+{
+	struct ::sysinfo memInfo;
+	::sysinfo(&memInfo);
+	IrStd::Type::Memory totalVirtualMem = memInfo.totalram;
+
+	totalVirtualMem *= memInfo.mem_unit;
+
+	return totalVirtualMem;
+}
+
+IrStd::Type::Memory IrStd::Memory::getRAMTotalUsed() const noexcept
+{
+	struct ::sysinfo memInfo;
+	::sysinfo(&memInfo);
+	IrStd::Type::Memory virtualMemUsed = memInfo.totalram - memInfo.freeram;
+
+	virtualMemUsed *= memInfo.mem_unit;
+
+	return virtualMemUsed;
+}
+
+IrStd::Type::Memory IrStd::Memory::getRAMCurrent() const noexcept
+{
+	FILE* file = ::fopen("/proc/self/status", "r");
+	IrStd::Type::Memory result = 0;
+	char line[128];
+	if (file)
+	{
+		while (::fgets(line, 128, file) != NULL)
+		{
+			if (::strncmp(line, "VmRSS:", 6) == 0)
+			{
+				const char* p = line;
+				while (*p <'0' || *p > '9') p++;
+				line[::strlen(line) - 3] = '\0';
+				result = ::atoi(p);
+				break;
+			}
+		}
+		::fclose(file);
+	}
+	return result;
+}
+#endif

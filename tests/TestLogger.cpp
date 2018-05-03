@@ -4,21 +4,23 @@
 #include <sstream>
 #include <thread>
 
-IRSTD_TOPIC_REGISTER(TestTopic1);
-IRSTD_TOPIC_REGISTER(TestTopic2);
-IRSTD_TOPIC_REGISTER(TestTopic3);
+IRSTD_TOPIC_REGISTER(Test, Topic1);
+IRSTD_TOPIC_REGISTER(Test, Topic2);
+IRSTD_TOPIC_REGISTER(Test, Topic3);
 
 class LoggerTest : public IrStd::Test
 {
 protected:
 	void SetUp()
 	{
+		{
+			m_loggerStream.str("");
+			IrStd::Logger::Stream stream{m_loggerStream, IrStd::Logger::Format::raw};
+			m_logger = IrStd::Logger{stream};
+		}
+
 		// Call parent function setup
 		IrStd::Test::SetUp();
-
-		m_loggerStream.str("");
-		IrStd::Logger::Stream stream{m_loggerStream, &IrStd::Logger::FormatRaw::getInstance()};
-		m_logger = IrStd::Logger{stream};
 	}
 
 	IrStd::Logger& getLogger() noexcept
@@ -53,32 +55,33 @@ public:
 
 // ---- LoggerTest::testSimple ------------------------------------------------
 
-TEST_F(LoggerTest, testSimple) {
+TEST_F(LoggerTest, testSimple)
+{
 	// Simple string output
 	{
 		loggerClear();
-		IRSTD_LOG(getLogger(), "test");
+		IRSTD_LOG_ERROR(getLogger(), "test");
 		ASSERT_TRUE(getLoggerStr() == "test\n") << "getLoggerStr()=\"" << getLoggerStr() << "\"";
 	}
 
 	// Composed string output
 	{
 		loggerClear();
-		IRSTD_LOG(getLogger(), "test" << 1.5 << "another" << -8);
+		IRSTD_LOG_ERROR(getLogger(), "test" << 1.5 << "another" << -8);
 		ASSERT_TRUE(getLoggerStr() == "test1.5another-8\n") << "getLoggerStr()=\"" << getLoggerStr() << "\"";
 	}
 
 	// Various argument combination, this tests only at compilation level
 	{
 		IRSTD_LOG("test");
-		IRSTD_LOG(IrStd::Topic::TestTopic1, "test");
+		IRSTD_LOG(IRSTD_TOPIC(Test, Topic1), "test");
 		IRSTD_LOG(IrStd::Logger::Level::Trace, "test");
-		IRSTD_LOG(IrStd::Topic::TestTopic1, IrStd::Logger::Level::Trace, "test");
-		IRSTD_LOG(IrStd::Logger::Level::Trace, IrStd::Topic::TestTopic1, "test");
-		IRSTD_LOG(getLogger(), IrStd::Topic::TestTopic1, "test");
+		IRSTD_LOG(IRSTD_TOPIC(Test, Topic1), IrStd::Logger::Level::Trace, "test");
+		IRSTD_LOG(IrStd::Logger::Level::Trace, IRSTD_TOPIC(Test, Topic1), "test");
+		IRSTD_LOG(getLogger(), IRSTD_TOPIC(Test, Topic1), "test");
 		IRSTD_LOG(getLogger(), IrStd::Logger::Level::Trace, "test");
-		IRSTD_LOG(getLogger(), IrStd::Logger::Level::Trace, IrStd::Topic::TestTopic1, "test");
-		IRSTD_LOG(getLogger(), IrStd::Topic::TestTopic1, IrStd::Logger::Level::Trace, "test");
+		IRSTD_LOG(getLogger(), IrStd::Logger::Level::Trace, IRSTD_TOPIC(Test, Topic1), "test");
+		IRSTD_LOG(getLogger(), IRSTD_TOPIC(Test, Topic1), IrStd::Logger::Level::Trace, "test");
 	}
 }
 
@@ -103,7 +106,8 @@ void LoggerTest::validateEachLine(const char* const regexMatch)
 	}
 }
 
-TEST_F(LoggerTest, testThreadSync) {
+TEST_F(LoggerTest, testThreadSync)
+{
 	const size_t NB_THREADS = 10;
 	std::thread t[NB_THREADS];
 
@@ -122,14 +126,15 @@ TEST_F(LoggerTest, testThreadSync) {
 
 // ---- LoggerTest::testMultiStream -------------------------------------------
 
-TEST_F(LoggerTest, testMultiStream) {
+TEST_F(LoggerTest, testMultiStream)
+{
 	std::stringstream stream;
 	// Add a new stream to the logger
-	getLogger().addStream({stream, &IrStd::Logger::FormatRaw::getInstance()});
+	getLogger().addStream({stream, &IrStd::Logger::Format::raw});
 
 	// Double stream output
 	{
-		IRSTD_LOG(getLogger(), "test");
+		IRSTD_LOG_ERROR(getLogger(), "test");
 		ASSERT_TRUE(getLoggerStr() == "test\n") << "getLoggerStr()=\"" << getLoggerStr() << "\", stream.str()=\"" << stream.str() << "\"";
 		ASSERT_TRUE(stream.str() == "test\n") << "stream.str()=\"" << stream.str() << "\", getLoggerStr()=\"" << getLoggerStr() << "\"";
 	}
@@ -144,8 +149,8 @@ TEST_F(LoggerTest, testGlobalFilter)
 		loggerClear();
 		IRSTD_LOG_TRACE(getLogger(), "trace");
 		IRSTD_LOG_INFO(getLogger(), "info");
-		IRSTD_LOG_INFO(getLogger(), IrStd::Topic::TestTopic1, "topic");
-		ASSERT_TRUE(getLoggerStr() == "trace\ninfo\n") << "getLoggerStr()=\"" << getLoggerStr() << "\"";
+		IRSTD_LOG_TRACE(getLogger(), IRSTD_TOPIC(Test, Topic1), "topic");
+		ASSERT_TRUE(getLoggerStr() == "trace\ninfo\ntopic\n") << "getLoggerStr()=\"" << getLoggerStr() << "\"";
 	}
 
 	// Level
@@ -154,17 +159,17 @@ TEST_F(LoggerTest, testGlobalFilter)
 		loggerClear();
 		IRSTD_LOG_TRACE(getLogger(), "trace");
 		IRSTD_LOG_INFO(getLogger(), "info");
-		IRSTD_LOG_INFO(getLogger(), IrStd::Topic::TestTopic1, "topic");
+		IRSTD_LOG_TRACE(getLogger(), IRSTD_TOPIC(Test, Topic1), "topic");
 		ASSERT_TRUE(getLoggerStr() == "info\n") << "getLoggerStr()=\"" << getLoggerStr() << "\"";
 	}
 
 	// Topic
-	getLogger().addTopic(IrStd::Topic::TestTopic1);
+	getLogger().addTopic(IRSTD_TOPIC(Test, Topic1));
 	{
 		loggerClear();
 		IRSTD_LOG_TRACE(getLogger(), "trace");
 		IRSTD_LOG_INFO(getLogger(), "info");
-		IRSTD_LOG_INFO(getLogger(), IrStd::Topic::TestTopic1, "topic");
+		IRSTD_LOG_TRACE(getLogger(), IRSTD_TOPIC(Test, Topic1), "topic");
 		ASSERT_TRUE(getLoggerStr() == "info\ntopic\n") << "getLoggerStr()=\"" << getLoggerStr() << "\"";
 	}
 
@@ -172,7 +177,7 @@ TEST_F(LoggerTest, testGlobalFilter)
 /*	{
 		loggerClear();
 		IRSTD_LOG_ERROR(getLogger(), "notopic");
-		IRSTD_LOG_ERROR(getLogger(), IrStd::Topic::TestTopic1, "topic");
+		IRSTD_LOG_ERROR(getLogger(), IRSTD_TOPIC(Test, Topic1), "topic");
 		ASSERT_TRUE(getLoggerStr() == "info\ntopic\n") << "getLoggerStr()=\"" << getLoggerStr() << "\"";
 	}*/
 }
@@ -187,10 +192,10 @@ void LoggerTest::randomLoggerOperations(std::vector<IrStd::Logger>& loggerList)
 
 	// Set the various topics
 	{
-		topicList.push_back(&IrStd::Topic::None);
-		topicList.push_back(&IrStd::Topic::TestTopic1);
-		topicList.push_back(&IrStd::Topic::TestTopic2);
-		topicList.push_back(&IrStd::Topic::TestTopic3);
+		topicList.push_back(&IRSTD_TOPIC(IrStd, None));
+		topicList.push_back(&IRSTD_TOPIC(Test, Topic1));
+		topicList.push_back(&IRSTD_TOPIC(Test, Topic2));
+		topicList.push_back(&IRSTD_TOPIC(Test, Topic3));
 	}
 
 	// Set the various levels
@@ -205,7 +210,7 @@ void LoggerTest::randomLoggerOperations(std::vector<IrStd::Logger>& loggerList)
 	// Perform a random operation
 	for (size_t i = 0; i < nbOperations; i++)
 	{
-		auto& logger = m_rand.getVectorItem<IrStd::Logger>(loggerList);
+		auto& logger = m_rand.getArrayItem(loggerList);
 
 		// Pick a random action
 		switch (m_rand.getNumber<int>(0, 6))
@@ -216,18 +221,18 @@ void LoggerTest::randomLoggerOperations(std::vector<IrStd::Logger>& loggerList)
 		case 2:
 		case 3:
 			{
-				const auto pTopic = m_rand.getVectorItem<const IrStd::TopicImpl*>(topicList);
-				const auto level = m_rand.getVectorItem<IrStd::Logger::Level>(levelList);
+				const auto pTopic = m_rand.getArrayItem(topicList);
+				const auto level = m_rand.getArrayItem(levelList);
 				IRSTD_LOG(logger, level, *pTopic, "Test from logger ptr=" << reinterpret_cast<void*>(&logger));
 			}
 			break;
 		// Add a new topic
 		case 4:
-			logger.addTopic(*m_rand.getVectorItem<const IrStd::TopicImpl*>(topicList));
+			logger.addTopic(*m_rand.getArrayItem(topicList));
 			break;
 		// Set level
 		case 5:
-			logger.setLevel(m_rand.getVectorItem<IrStd::Logger::Level>(levelList));
+			logger.setLevel(m_rand.getArrayItem(levelList));
 			break;
 		// Remove all topics
 		case 6:

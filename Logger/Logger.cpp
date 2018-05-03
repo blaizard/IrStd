@@ -7,7 +7,8 @@
 #include "../Scope.hpp"
 #include "../Thread.hpp"
 
-IRSTD_TOPIC_REGISTER(None, "");
+IRSTD_TOPIC_REGISTER(IrStd, None);
+IRSTD_TOPIC_USE_ALIAS(IrStdNone, IrStd, None);
 
 // ---- IrStd::Logger ---------------------------------------------------------
 
@@ -16,8 +17,7 @@ bool IrStd::Logger::m_globalEnable = true;
 
 IrStd::Logger::Logger()
 {
-	// By default only None topics are displayed
-	m_filter.addTopic(IrStd::Topic::None);
+	// By default topics are displayed only based on the min level
 }
 
 IrStd::Logger::Logger(const Stream& stream)
@@ -201,98 +201,95 @@ void IrStd::Logger::allTopics() noexcept
 	m_filter.allTopics();
 }
 
-void IrStd::Logger::addTopic(const TopicImpl& topic) noexcept
+void IrStd::Logger::addTopic(const TopicImpl& topic, const Level minLevel) noexcept
 {
-	m_filter.addTopic(topic);
+	m_filter.addTopic(topic, minLevel);
 }
 
-// ---- IrStd::Logger::Format -------------------------------------------------
+// ---- IrStd::Logger::Formater -----------------------------------------------
 
-void IrStd::Logger::FormatRaw::header(
-		std::ostream& /*out*/,
-		const Info& /*info*/) const
-{
-}
-
-void IrStd::Logger::FormatRaw::body(
-	std::ostream& out,
-	const std::string& str) const
-{
-	out << str;
-}
-
-void IrStd::Logger::FormatRaw::tail(std::ostream& out) const
-{
-	out << std::endl;
-}
-
-// ---- IrStd::Logger::FormatDefault ------------------------------------------
-
-void IrStd::Logger::FormatDefault::header(
+void IrStd::Logger::Format::raw(
 		std::ostream& out,
-		const Info& info) const
+		const Info& /*info*/,
+		const std::string& str)
 {
+	out << str << std::endl;
+}
+
+void IrStd::Logger::Format::standard(
+		std::ostream& out,
+		const Info& info,
+		const std::string& str)
+{
+	constexpr size_t SIZE_DATE = 23;
+	constexpr size_t SIZE_THREADID = 21;
+	constexpr size_t SIZE_LEVEL = 2;
+	constexpr size_t SIZE_TOPIC = 20;
+	constexpr size_t SIZE_FILE_LINE = 28;
+	constexpr size_t SIZE_SEPARATOR = 1;
+
 	// Format the date
 	{
 		out << info.m_time;
 	}
 	// Format the thread ID
 	{
-		out << " [0x" << std::setw(16) << std::setfill('0') << std::hex << Thread::getHash() << "]";
+		out << " [0x" << std::setw(SIZE_THREADID - 5) << std::setfill('0') << std::hex << Thread::getHash() << "]";
 	}
 	// Format the level
 	{
-		const uint32_t level = static_cast<uint32_t>(info.m_level);
-		out << " " << static_cast<const char>(level & 0xff);
+		out << " " << levelToChar(info.m_level);
 	}
-	// Format the level, topic and file information
-	out << " " << std::setfill(' ') << std::left << std::setw(12) << info.m_topic.getStr();
+	// Format the topic
+	{
+		const auto pTopicStr = info.m_topic.getStr();
+		const auto topicStrLength = std::strlen(pTopicStr);
+		out << " " << std::setfill(' ') << std::left << std::setw((SIZE_TOPIC - 1))
+				<< ((topicStrLength > (SIZE_TOPIC - 1)) ? &pTopicStr[topicStrLength - (SIZE_TOPIC - 1)] : pTopicStr);
+	}
 	// Format the file & line
 	{
-		constexpr size_t FILE_LENGTH = 22;
+		constexpr size_t FILE_LENGTH = SIZE_FILE_LINE - 6;
 		char buffer[FILE_LENGTH + 16];
 		const size_t lenFile =  strlen(info.m_file);
 		const size_t startFile = (lenFile > FILE_LENGTH) ? lenFile - FILE_LENGTH : 0;
 
 		sprintf(buffer, "%s:%i", &info.m_file[startFile], static_cast<int>(info.m_line));
 
-		out << " " << std::setw(FILE_LENGTH + 5) << buffer;
+		out << " " << std::setw(SIZE_FILE_LINE - 1) << buffer;
 	}
 
 	// Reset
 	{
 		out << " " << std::right << std::dec;
 	}
-}
 
-void IrStd::Logger::FormatDefault::body(
-	std::ostream& out,
-	const std::string& str) const
-{
-	std::string::size_type startPos = 0;
-	std::string::size_type endPos = 0;
-	bool firstLine = true;
-
-	while ((endPos = str.find("\n", startPos)) != std::string::npos)
+	// Body
 	{
-		if (!firstLine)
+		std::string::size_type startPos = 0;
+		std::string::size_type endPos = 0;
+		bool firstLine = true;
+
+		while ((endPos = str.find("\n", startPos)) != std::string::npos)
 		{
-			out << "\n" << std::string(88, ' ');
+			if (!firstLine)
+			{
+				out << "\n" << std::string(SIZE_DATE + SIZE_THREADID + SIZE_LEVEL
+						+ SIZE_TOPIC + SIZE_FILE_LINE + SIZE_SEPARATOR, ' ');
+			}
+			out.write(&str.at(startPos), endPos - startPos);
+			startPos = endPos + 1;
+			firstLine = false;
 		}
-		out.write(&str.at(startPos), endPos - startPos);
-		startPos = endPos + 1;
-		firstLine = false;
+
+		// Print the rest
+		if (startPos < str.size())
+		{
+			out << &str.at(startPos);
+		}
 	}
 
-	// Print the rest
-	if (startPos < str.size())
-	{
-		out << &str.at(startPos);
-	}
-}
-
-void IrStd::Logger::FormatDefault::tail(std::ostream& out) const
-{
+	// Tail
 	out << std::endl;
 }
 
@@ -331,9 +328,7 @@ IrStd::Logger::OutputStream::~OutputStream()
 			{
 				const std::string& str = m_bufferStream.str();
 				std::lock_guard<std::mutex> lock(mtx);
-				stream.m_pFormat->header(stream.m_os, m_info);
-				stream.m_pFormat->body(stream.m_os, str);
-				stream.m_pFormat->tail(stream.m_os);
+				stream.m_format(stream.m_os, m_info, str);
 			}
 		}
 	}

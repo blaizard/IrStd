@@ -1,16 +1,23 @@
 # Build the test executable
 set(test_sources
+	TestCompiler.cpp
 	TestEvent.cpp
+	TestFileCsv.cpp
 	TestFlag.cpp
 	TestMacro.cpp
 	TestLogger.cpp
 	TestMemory.cpp
 	TestJson.cpp
 	TestException.cpp
+	TestMain.cpp
+	TestRWLock.cpp
 	TestServer.cpp
 	TestStreambuf.cpp
 	TestThread.cpp
+	TestTopic.cpp
 	TestType.cpp
+	TestTypeRingBuffer.cpp
+	TestTypeStreamDB.cpp
 )
 
 include_directories(..)

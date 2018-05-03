@@ -38,23 +38,41 @@ IrStd::Test::~Test()
 
 void IrStd::Test::SetUp()
 {
-	IrStd::Rand::Seed seed = IrStd::Rand::generateSeed();
-	m_rand.setSeed(seed);
+	// Write the current time
 	{
 		std::stringstream stream;
-		stream << "Seed: " << std::dec << std::setw(10) << seed;
+		stream << "Time: " << IrStd::Type::Timestamp::now();
 		print(stream.str().c_str());
 	}
+
+	// Generate the seed
+	{
+		IrStd::Rand::Seed seed = IrStd::Rand::generateSeed();
+		m_rand.setSeed(seed);
+		{
+			std::stringstream stream;
+			stream << "Seed: " << std::dec << std::setw(10) << seed;
+			print(stream.str().c_str());
+		}
+	}
+
+	m_statisticsScope.startMonitoring();
 }
 
 void IrStd::Test::TearDown()
 {
+	// Print the memory consumption
+	m_statisticsScope.stopMonitoring();
+	{
+		std::stringstream stream;
+		stream << "Memory: " << IRSTD_MEMORY_STATISTICS_STREAM(m_statisticsScope.getStatistics());
+		print(stream.str().c_str());
+	}
 }
 
-void IrStd::Test::print(const char* const output)
+void IrStd::Test::print(const std::string& output)
 {
-	::testing::internal::ColoredPrintf(testing::internal::COLOR_GREEN, "[          ] ");
-	::testing::internal::ColoredPrintf(testing::internal::COLOR_YELLOW, "%s\n", output);
+	std::cout << "[          ] " << output.c_str() <<std::endl;
 }
 
 bool IrStd::Test::validateOutput(const char* const output, const char* const regexStr, const RegexMatch mode, const bool expectSuccess)

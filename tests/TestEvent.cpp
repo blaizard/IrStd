@@ -5,7 +5,7 @@
 
 #define DEBUG 1
 
-IRSTD_TOPIC_USE(IrStdEvent);
+IRSTD_TOPIC_USE(IrStd, Event);
 
 class EventTest : public IrStd::Test
 {
@@ -17,11 +17,12 @@ public:
 
 #if defined(DEBUG)
 		// Enable specific traces
-		IrStd::Logger::getDefault().addTopic(IrStd::Topic::IrStdEvent);
+		IrStd::Logger::getDefault().addTopic(IRSTD_TOPIC(IrStd, Event));
 #endif
 	}
 
 	void testWaitForNextFctThread(IrStd::Event& event);
+	void testWaitForNextsFctThread(IrStd::Event& event, IrStd::Event& localEvent);
 	void testWaitForAtLeastFctThread(IrStd::Event& event, const size_t nbThreads, bool& isBeforeWait);
 };
 
@@ -47,6 +48,45 @@ TEST_F(EventTest, testWaitForNext)
 	event.waitForNext();
 
 	t.join();
+}
+
+// ---- testWaitForNexts ------------------------------------------------------
+
+void EventTest::testWaitForNextsFctThread(IrStd::Event& event, IrStd::Event& localEvent)
+{
+	event.waitForNext();
+	std::this_thread::sleep_for(std::chrono::milliseconds(10));
+	localEvent.trigger();
+}
+
+TEST_F(EventTest, testWaitForNexts)
+{
+	constexpr size_t NB_THREADS = 100;
+	std::thread threadList[NB_THREADS];
+	std::array<IrStd::Event, NB_THREADS> eventList;
+	IrStd::Event event;
+
+	// Create events and its associated pointer list and also create the threads
+	std::array<IrStd::Event*, NB_THREADS> pointerEventList;
+	for (size_t i=0; i<NB_THREADS; i++)
+	{
+		pointerEventList[i] = &eventList[i];
+		threadList[i] = std::thread(&EventTest::testWaitForNextsFctThread, this,
+				std::ref(event), std::ref(eventList[i]));
+	}
+
+	// Ensure the thread reached the waitForNext statement
+	std::this_thread::sleep_for(std::chrono::milliseconds(100));
+	event.trigger();
+
+	// Wait for all events
+	const auto* pEvent = event.waitForNexts(/*timeoutMs*/1000, const_cast<const std::array<IrStd::Event*, NB_THREADS>&>(pointerEventList));
+	ASSERT_TRUE(pEvent == nullptr) << "pEvent=" << *pEvent;
+
+	for (size_t i=0; i<NB_THREADS; i++)
+	{
+		threadList[i].join();
+	}
 }
 
 // ---- testWaitForAtLeast ----------------------------------------------------

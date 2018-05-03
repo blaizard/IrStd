@@ -20,7 +20,8 @@ namespace IrStd
 		enum class Capture
 		{
 			NONE,
-			INTEGER,
+			INT,
+			UINT,
 			STRING
 		};
 
@@ -35,9 +36,14 @@ namespace IrStd
 			static constexpr size_t MAX_MATCHES = 10;
 
 			/**
+			 * Return the match at a specific index and returns its unsigned integer interpretation
+			 */
+			uint64_t getMatchAsUInt(const size_t index) const;
+
+			/**
 			 * Return the match at a specific index and returns its integer interpretation
 			 */
-			int64_t getMatchAsInteger(const size_t index) const;
+			int64_t getMatchAsInt(const size_t index) const;
 
 			/**
 			 * Return the match at a specific index and returns its string interpretation
@@ -86,9 +92,14 @@ namespace IrStd
 		 * - "/uri/test/{INTEGER}/match"
 		 * - "/uri/test/{STRING}/match"
 		 */
-		void addRoute(const std::string uri, Callback callback);
+		void addRoute(const HTTPMethod method, const std::string uri, Callback callback);
 
 		virtual void handleResponse(IrStd::ServerHTTP::Context& context) override;
+
+		/**
+		 * Callback called when a request is sent but it does not match any route
+		 */
+		virtual void routeNotFound(IrStd::ServerHTTP::Context& context);
 
 		/**
 		 * Dump infomration about the server
@@ -211,7 +222,8 @@ namespace IrStd
 			};
 			std::unordered_map<ParamType, std::unique_ptr<Node>, Hasher> m_map;
 		};
-		Node m_node;
+
+		std::array<Node, static_cast<size_t>(HTTPMethod::COUNT)> m_nodeList;
 	};
 }
 

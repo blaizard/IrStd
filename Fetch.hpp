@@ -6,7 +6,7 @@
 #include <vector>
 #include <sstream>
 
-#include "Type.hpp"
+#include "Type/ShortString.hpp"
 
 namespace IrStd
 {
@@ -40,6 +40,8 @@ namespace IrStd
 	{
 	public:
 		FetchUrl(const char* const url, std::string& data);
+
+		const std::string& getUrl() const noexcept;
 
 		/**
 		 * Add post data to the request
@@ -80,7 +82,7 @@ namespace IrStd
 
 	private:
 		friend FetchCurl;
-		const char* const m_url;
+		std::string m_url;
 		std::string m_post;
 		std::vector<std::string> m_headerList;
 	};

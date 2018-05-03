@@ -185,7 +185,7 @@ TEST_F(ExceptionTest, testRetry) {
 	catch (const IrStd::Exception& e)
 	{
 		ASSERT_TRUE(e.isAllowRetry() == true);
-		ASSERT_TRUE(validateOutput(e.what(), "wrapper"));
+		ASSERT_TRUE(validateOutput(e.what(), "(retry)"));
 		const auto pE2 = e.getNext();
 		ASSERT_TRUE(pE2);
 		ASSERT_TRUE(validateOutput(pE2->what(), "bad_alloc"));

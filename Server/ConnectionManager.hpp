@@ -3,7 +3,7 @@
 #include "../Assert.hpp"
 #include "../Topic.hpp"
 
-IRSTD_TOPIC_USE(IrStdServer);
+IRSTD_TOPIC_USE(IrStd, Server);
 
 namespace IrStd
 {
@@ -175,12 +175,12 @@ size_t IrStd::ServerImpl::ConnectionManager<T>::allocateClient(const int socket)
 		// Make sure it is not reaching the connection limit
 		if (index == m_connections.size())
 		{
-			IRSTD_LOG_WARNING(IrStd::Topic::IrStdServer, "The maximum number of connection ("
+			IRSTD_LOG_WARNING(IRSTD_TOPIC(IrStd, Server), "The maximum number of connection ("
 					<< m_maxConnections<< ") has been reached");
 			return m_connections.size();
 		}
 		// Make sure this socket is not already registered
-		IRSTD_ASSERT(IrStd::Topic::IrStdServer, getIndex(socket) == m_connections.size(),
+		IRSTD_ASSERT(IRSTD_TOPIC(IrStd, Server), getIndex(socket) == m_connections.size(),
 				"Socket (" << socket << ") is already registered in connection #"
 				<< getIndex(socket));
 		// Register the client
@@ -191,7 +191,7 @@ size_t IrStd::ServerImpl::ConnectionManager<T>::allocateClient(const int socket)
 	}
 
 	IRSTD_ASSERT(isValidIndex(index));
-	IRSTD_LOG_TRACE(IrStd::Topic::IrStdServer, "Registered socket " << socket
+	IRSTD_LOG_TRACE(IRSTD_TOPIC(IrStd, Server), "Registered socket " << socket
 			<< " with connection #" << index);
 
 	return index;
@@ -207,7 +207,7 @@ template<class T>
 void IrStd::ServerImpl::ConnectionManager<T>::deallocateClient(const size_t index) noexcept
 {
 	IRSTD_ASSERT(isValidIndex(index));
-	IRSTD_LOG_TRACE(IrStd::Topic::IrStdServer, "Unregistering socket "
+	IRSTD_LOG_TRACE(IRSTD_TOPIC(IrStd, Server), "Unregistering socket "
 			<< m_connections[index].m_info.getSocket() << " with connection #" << index);
 	IRSTD_ASSERT(m_connections[index].m_status != Status::FREE);
 	IRSTD_ASSERT(m_connections[index].m_thread.joinable());
@@ -248,9 +248,9 @@ std::string& IrStd::ServerImpl::ConnectionManager<T>::getData(const size_t index
 template<class T>
 bool IrStd::ServerImpl::ConnectionManager<T>::isValidIndex(const size_t index) const noexcept
 {
-	IRSTD_ASSERT(IrStd::Topic::IrStdServer, index < m_connections.size(), "Index (" << index
+	IRSTD_ASSERT(IRSTD_TOPIC(IrStd, Server), index < m_connections.size(), "Index (" << index
 			<< ") is out of range");
-	IRSTD_ASSERT(IrStd::Topic::IrStdServer, m_connections[index].m_status != Status::FREE,
+	IRSTD_ASSERT(IRSTD_TOPIC(IrStd, Server), m_connections[index].m_status != Status::FREE,
 			"The status of the entry cannot be FREE");
 	return true;
 }
@@ -297,7 +297,7 @@ void IrStd::ServerImpl::ConnectionManager<T>::toStream(std::ostream& os) const
 			os << "TERMINATED";
 			break;
 		default:
-			IRSTD_UNREACHABLE(IrStd::Topic::IrStdServer);
+			IRSTD_UNREACHABLE(IRSTD_TOPIC(IrStd, Server));
 		}
 		os << " (" << client.m_info << ")" << std::endl;
 	}
@@ -327,7 +327,7 @@ void IrStd::ServerImpl::ConnectionManager<T>::garbageCollection()
 template<class T>
 void IrStd::ServerImpl::ConnectionManager<T>::stop()
 {
-	IRSTD_LOG_TRACE(IrStd::Topic::IrStdServer, "Stopping remaining connections");
+	IRSTD_LOG_TRACE(IRSTD_TOPIC(IrStd, Server), "Stopping remaining connections");
 	for (size_t i=0; i<m_connections.size(); i++)
 	{
 		if (m_connections[i].m_status != Status::FREE)

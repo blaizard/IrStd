@@ -28,6 +28,19 @@ else()
 	message(FATAL_ERROR "Unsupported compiler")
 endif()
 
+# Display information about the build
+message(STATUS "Compiler: ${IRSTD_COMPILER}")
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+
+# Add custom target to force recompiling the compiler.cpp file in order
+# to generate a new version for the build each time
+message(STATUS "Touching file 'Compiler/Compiler.cpp' to force regeneration of version number")
+add_custom_target(invalidate_files ALL
+		COMMAND touch ${CMAKE_CURRENT_LIST_DIR}/Compiler/Compiler.cpp)
+
+# Do not use specific compile options
+add_subdirectory(Websocket/pushcpp)
+
 if (IRSTD_COMPILER_GNU)
 	add_compile_options(
 		-Wall
@@ -36,7 +49,7 @@ if (IRSTD_COMPILER_GNU)
 		-Wshadow
 		-Wpointer-arith
 		-Wcast-align
-		-Wstrict-overflow=5
+		-Wstrict-overflow=2
 		-Wwrite-strings
 		-Wcast-qual
 		-Wswitch-default
@@ -50,10 +63,6 @@ if (IRSTD_COMPILER_GNU)
 	set(CMAKE_C_FLAGS_RELEASE "-DIRSTD_RELEASE -O3")
 endif()
 
-# Display information about the build
-message(STATUS "Compiler: ${IRSTD_COMPILER}")
-message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
-
 add_subdirectory(Crypto)
 add_subdirectory(Fetch)
 add_subdirectory(Json)
@@ -61,26 +70,38 @@ add_subdirectory(Test)
 add_subdirectory(tests)
 
 set(irstd_sources
-	Data/Data.cpp
+	Compiler/Compiler.cpp
 	Event/Event.cpp
 	Exception/Exception.cpp
 	Exception/ExceptionPtr.cpp
+	FileSystem/FileSystem.cpp
+	FileSystem/FileStream.cpp
+	FileSystem/FileCsv.cpp
 	Logger/Logger.cpp
 	Main/Main.cpp
 	Memory/Memory.cpp
 	Rand/Rand.cpp
 	Bootstrap/Bootstrap.cpp
 	Thread/Thread.cpp
+	Thread/Threads.cpp
 	Topic/Topic.cpp
 	Type/Type.cpp
 	Type/Timestamp.cpp
+	Type/Memory.cpp
 	Type/ShortString.cpp
+	Type/Gson.cpp
+	Type/Decimal.cpp
+	Type/Numeric.cpp
+	Type/Buffer.cpp
+	Type/Stopwatch.cpp
 	Server/Server.cpp
 	Server/ServerHTTP.cpp
 	Server/ServerREST.cpp
+	Server/MimeType.cpp
 	Json/Json.cpp
 	Utils/Utils.cpp
+	Websocket/Pusher.cpp
 )
 
 add_library(irstd ${irstd_sources})
-target_link_libraries(irstd irstdfetch irstdcrypto)
+target_link_libraries(irstd irstdfetch irstdwebsocket irstdcrypto)

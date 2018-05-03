@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../Type.hpp"
+#include "Numeric.hpp"
 
 namespace IrStd
 {
@@ -9,14 +9,12 @@ namespace IrStd
 		/**
 		 * Timestamp in ms
 		 */
-		class Timestamp : public NumericImpl<uint64_t>
+		class Timestamp : public Numeric<uint64_t>
 		{
 		public:
-			Timestamp() = default;
-
-			template<typename T>
-			Timestamp(const T value)
-					: NumericImpl<uint64_t>(value)
+			template<class ... Args>
+			Timestamp(Args&& ... args)
+					: IrStd::Type::Numeric<uint64_t>(std::forward<Args>(args)...)
 			{
 			}
 
@@ -39,6 +37,14 @@ namespace IrStd
 			}
 
 			static Timestamp now() noexcept;
+
+			size_t getYears() const noexcept;
+			size_t getMonths() const noexcept;
+			size_t getDays() const noexcept;
+			size_t getHours() const noexcept;
+			size_t getMinutes() const noexcept;
+			size_t getSeconds() const noexcept;
+			size_t getMilliseconds() const noexcept;
 
 			void toStream(std::ostream& os) const;
 		};

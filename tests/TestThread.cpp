@@ -183,3 +183,27 @@ TEST_F(ThreadTest, testMulti)
 		IrStd::Threads::terminate();
 	}
 }
+
+// ---- testPool --------------------------------------------------------------
+
+TEST_F(ThreadTest, testPool)
+{
+	int counter = 0;
+	{
+		IrStd::ThreadPool<3> pool("testPool");
+		std::mutex mutex;
+
+		for (size_t i=0; i<100; ++i)
+		{
+			pool.addJob([&]() {
+				std::unique_lock<std::mutex> lock(mutex);
+				//std::cout << "Job done by " << std::this_thread::get_id() << " -> " << counter << std::endl;
+				++counter;
+			});
+		}
+
+		pool.waitForAllJobsToBeCompleted();
+	}
+
+	ASSERT_TRUE(counter == 100) << "counter=" << counter;
+}

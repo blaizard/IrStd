@@ -72,11 +72,15 @@ TEST_F(FlagTest, testFlagLockThread)
 		ASSERT_TRUE(flag.isSet() && !prev);
 	}
 
+	std::cout << "1" << std::endl;
+
 	// Set from true to true
 	{
 		const bool prev = flag.setAndGet();
 		ASSERT_TRUE(flag.isSet() && prev);
 	}
+
+		std::cout << "2" << std::endl;
 
 	// Unset from true to false
 	{

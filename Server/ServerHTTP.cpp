@@ -7,7 +7,7 @@
 #include "../Assert.hpp"
 #include "../Topic.hpp"
 
-IRSTD_TOPIC_USE(IrStdServer);
+IRSTD_TOPIC_USE_ALIAS(IrStdServer, IrStd, Server);
 
 //#define DEBUG_SERVERHTTP 1
 
@@ -46,6 +46,8 @@ void IrStd::ServerHTTPImpl::ClientInfo::clearData() noexcept
 
 IrStd::HTTPMethod IrStd::ServerHTTPImpl::ClientInfo::getMethod() const noexcept
 {
+	IRSTD_ASSERT(static_cast<size_t>(m_method) < static_cast<size_t>(HTTPMethod::COUNT),
+			"Method is out of bound, got " << static_cast<size_t>(m_method));
 	return m_method;
 }
 
@@ -87,6 +89,7 @@ std::ostream& operator<<(std::ostream& os, const IrStd::ServerHTTPImpl::ClientIn
 		break;
 	case IrStd::HTTPMethod::UNKNOWN:
 		break;
+	case IrStd::HTTPMethod::COUNT:
 	default:
 		IRSTD_UNREACHABLE();
 	}
@@ -211,7 +214,7 @@ IrStd::ServerHTTP::ProcessStatus IrStd::ServerHTTP::processImpl(
 	ResponseRAII raii(socket);
 
 	#ifdef DEBUG_SERVERHTTP
-		IRSTD_LOG_DEBUG(IrStd::Topic::IrStdServer, "Request through socket " << socket << ":\n"
+		IRSTD_LOG_DEBUG(IrStdServer, "Request through socket " << socket << ":\n"
 				<< dataStr);
 	#endif
 
@@ -273,7 +276,7 @@ IrStd::ServerHTTP::ProcessStatus IrStd::ServerHTTP::processImpl(
 		info.m_totalDataSize = (info.m_totalDataSize) ?
 				info.m_totalDataSize : info.m_fetchDataSize;
 
-		IRSTD_THROW_ASSERT(IrStd::Topic::IrStdServer,
+		IRSTD_THROW_ASSERT(IrStdServer,
 				info.m_totalFetchDataSize <= info.m_totalDataSize,
 				"The amount of data fetched (" << info.m_totalFetchDataSize
 				<< ") is larger that the total amount of data ("
@@ -281,13 +284,13 @@ IrStd::ServerHTTP::ProcessStatus IrStd::ServerHTTP::processImpl(
 	}
 	catch (const Exception& e)
 	{
-		IRSTD_LOG_ERROR(IrStd::Topic::IrStdServer, "Error while parsing request ("
-				<< info << "): " << e.what());
+		IRSTD_LOG_ERROR(IrStdServer, "Error while parsing request ("
+				<< info << "): " << e);
 		raii.m_response.setStatus(400);
 		return raii.sendAndClose();
 	}
 
-	IRSTD_LOG_TRACE(IrStd::Topic::IrStdServer, "HTTP Request: " << info);
+	IRSTD_LOG_TRACE(IrStdServer, "HTTP Request: " << info);
 
 	// Generate the response
 	try
@@ -302,8 +305,8 @@ IrStd::ServerHTTP::ProcessStatus IrStd::ServerHTTP::processImpl(
 	}
 	catch (const Exception& e)
 	{
-		IRSTD_LOG_ERROR(IrStd::Topic::IrStdServer, "Error while preparing response ("
-				<< info << "): " << e.what());
+		IRSTD_LOG_ERROR(IrStdServer, "Error while preparing response ("
+				<< info << "): " << e);
 		raii.m_response.setStatus(500);
 		return raii.sendAndClose();
 	}
@@ -313,7 +316,7 @@ IrStd::ServerHTTP::ProcessStatus IrStd::ServerHTTP::processImpl(
 
 void IrStd::ServerHTTP::handleResponse(Context& context)
 {
-	IRSTD_LOG_INFO(IrStd::Topic::IrStdServer, "IrStd::ServerHTTP::handleResponse("
+	IRSTD_LOG_INFO(IrStdServer, "IrStd::ServerHTTP::handleResponse("
 			<< context.getRequest().getTotalDataSize() << ")");
 }
 
@@ -332,7 +335,7 @@ size_t IrStd::ServerHTTP::fetchData(Request& request, const size_t maxSize, cons
 	{
 		const size_t nbDataToRead = std::min(request.m_totalDataSize - request.m_totalFetchDataSize, maxSize);
 
-		IRSTD_LOG_TRACE(IrStd::Topic::IrStdServer, "Fetching " << nbDataToRead
+		IRSTD_LOG_TRACE(IrStdServer, "Fetching " << nbDataToRead
 				<< " byte(s) from " << request);
 
 		nbDataRead = receiveSpecificAmount(request.getSocket(), data, nbDataToRead);
@@ -789,6 +792,13 @@ void IrStd::ServerHTTP::Response::setData(const Type::ShortString value)
 	m_data.assign(value);
 }
 
+void IrStd::ServerHTTP::Response::setData(const IrStd::Json& json)
+{
+	std::string serialize = json.serialize();
+	addHeader("Content-Type", "application/json");
+	setData(serialize.c_str());
+}
+
 void IrStd::ServerHTTP::Response::setData(const char* const data, const size_t size)
 {
 	m_data.assign(data, size);
@@ -813,7 +823,7 @@ void IrStd::ServerHTTP::Response::send(const int socket) const
 	response.append(m_pReason);
 
 	// If response is different from 200, print it
-	IRSTD_LOG_TRACE(IrStd::Topic::IrStdServer, "Response (socket="
+	IRSTD_LOG_TRACE(IrStdServer, "Response (socket="
 			<< socket << "): " << response);
 
 	response.append(Data::CRLF);
@@ -830,11 +840,11 @@ void IrStd::ServerHTTP::Response::send(const int socket) const
 	response.append(m_data);
 
 	#ifdef DEBUG_SERVERHTTP
-		IRSTD_LOG_DEBUG(IrStd::Topic::IrStdServer, "Response (socket=" << socket << ") (continue):\n"
+		IRSTD_LOG_DEBUG(IrStdServer, "Response (socket=" << socket << ") (continue):\n"
 				<< response);
 	#endif
 
 	const auto ret = ::send(socket, response.c_str(), response.size(), 0);
-	IRSTD_THROW_ASSERT(IrStd::Topic::IrStdServer, ret != -1, "send: code="
+	IRSTD_THROW_ASSERT(IrStdServer, ret != -1, "send: code="
 			<< errno << ", str=" << ::strerror(errno));
 }

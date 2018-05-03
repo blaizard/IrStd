@@ -12,8 +12,9 @@
 #include "../Server.hpp"
 #include "../Logger.hpp"
 #include "../Assert.hpp"
+#include "../Type/ShortString.hpp"
 
-IRSTD_TOPIC_USE(IrStdServer);
+IRSTD_TOPIC_USE(IrStd, Server);
 
 // ---- IrStd::Server ---------------------------------------------------------
 
@@ -70,10 +71,10 @@ size_t IrStd::Server<T>::receive(const int socket, std::string& data, const size
 		// Wait for an event
 		const int retPoll = ::poll(fds, 1, CLIENT_TIMEOUT_MS);
 
-		IRSTD_THROW_ASSERT(IrStd::Topic::IrStdServer, retPoll != -1,
+		IRSTD_THROW_ASSERT(IRSTD_TOPIC(IrStd, Server), retPoll != -1,
 				"poll: code=" << errno << ", str=" << ::strerror(errno))
 
-		IRSTD_THROW_ASSERT(IrStd::Topic::IrStdServer, retPoll != 0,
+		IRSTD_THROW_ASSERT(IRSTD_TOPIC(IrStd, Server), retPoll != 0,
 				"Timeout while receiving data");
 
 		if (fds[0].revents & POLLIN)
@@ -81,7 +82,7 @@ size_t IrStd::Server<T>::receive(const int socket, std::string& data, const size
 			data.resize(originalSize + size + chunckSize);
 			const auto sizeRecv = ::recv(socket, &data[originalSize + size], chunckSize, 0);
 
-			IRSTD_THROW_ASSERT(IrStd::Topic::IrStdServer, sizeRecv >= 0,
+			IRSTD_THROW_ASSERT(IRSTD_TOPIC(IrStd, Server), sizeRecv >= 0,
 					"recv: code=" << errno << ", str=" << ::strerror(errno));
 
 			size += sizeRecv;
@@ -89,7 +90,7 @@ size_t IrStd::Server<T>::receive(const int socket, std::string& data, const size
 			{
 				int count;
 				const auto retIoctl = ::ioctl(socket, FIONREAD, &count);
-				IRSTD_THROW_ASSERT(IrStd::Topic::IrStdServer, retIoctl != -1,
+				IRSTD_THROW_ASSERT(IRSTD_TOPIC(IrStd, Server), retIoctl != -1,
 						"ioctl: code=" << errno << ", str=" << ::strerror(errno));
 
 				if (sizeRecv == 0 || count == 0)
@@ -111,7 +112,7 @@ size_t IrStd::Server<T>::receive(const int socket, std::string& data, const size
 template<class T>
 void IrStd::Server<T>::closeSocket(const int socket) noexcept
 {
-	IRSTD_ASSERT(socket >= 0);
+	IRSTD_ASSERT(IRSTD_TOPIC(IrStd, Server), socket >= 0, "socket=" << socket);
 
 	try
 	{
@@ -120,7 +121,7 @@ void IrStd::Server<T>::closeSocket(const int socket) noexcept
 			int err = 1;
 			::socklen_t len = sizeof(err);
 			const auto ret = ::getsockopt(socket, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &len);
-			IRSTD_THROW_ASSERT(IrStd::Topic::IrStdServer, ret != -1, "::getsockopt returned " << ret
+			IRSTD_THROW_ASSERT(IRSTD_TOPIC(IrStd, Server), ret != -1, "::getsockopt returned " << ret
 					<< ", code=" << errno << ", str=" << ::strerror(errno));
 			// Set errno to the socket SO_ERROR
 			if (err)
@@ -131,7 +132,7 @@ void IrStd::Server<T>::closeSocket(const int socket) noexcept
 		// Shutdown the socket (for read and write)
 		{
 			const auto ret = ::shutdown(socket, SHUT_RDWR);
-			IRSTD_THROW_ASSERT(IrStd::Topic::IrStdServer, ret >= 0 || errno == ENOTCONN || errno == EINVAL,
+			IRSTD_THROW_ASSERT(IRSTD_TOPIC(IrStd, Server), ret >= 0 || errno == ENOTCONN || errno == EINVAL,
 					"::shutdown returned " << ret << ", code=" << errno << ", str=" << ::strerror(errno));
 
 		}
@@ -139,22 +140,22 @@ void IrStd::Server<T>::closeSocket(const int socket) noexcept
 		{
 			char c;
 			const auto ret = ::recv(socket, &c, 1, 0);
-			IRSTD_THROW_ASSERT(IrStd::Topic::IrStdServer, ret >= 0 || errno == ENOTCONN || errno == EINVAL,
+			IRSTD_THROW_ASSERT(IRSTD_TOPIC(IrStd, Server), ret >= 0 || errno == ENOTCONN || errno == EINVAL,
 					"::recv returned " << ret << ", code=" << errno << ", str=" << ::strerror(errno));
 		}*/
 	}
 	catch (const IrStd::Exception& e)
 	{
-		IRSTD_LOG_ERROR(IrStd::Topic::IrStdServer, "Error while closing thread: " << e.what()
+		IRSTD_LOG_ERROR(IRSTD_TOPIC(IrStd, Server), "Error while closing thread: " << e
 				<< ", forcing close anyway");
 	}
 
-	// Close the damn socket, if it fails only print an error, there is nothign else we can do :(
+	// Close the damn socket, if it fails only print an error, there is nothing else we can do :(
 	{
 		const auto ret = ::close(socket);
 		if (ret == -1)
 		{
-			IRSTD_LOG_FATAL(IrStd::Topic::IrStdServer, "::close returned " << ret
+			IRSTD_LOG_FATAL(IRSTD_TOPIC(IrStd, Server), "::close returned " << ret
 					<< ", code=" << errno << ", str=" << ::strerror(errno));
 		}
 	}
@@ -176,7 +177,7 @@ void IrStd::Server<T>::process(const size_t index)
 		~RAII()
 		{
 			const auto socket = m_manager.getSocket(m_index);
-			IRSTD_LOG_TRACE(IrStd::Topic::IrStdServer, "Closing connection #" << m_index
+			IRSTD_LOG_TRACE(IRSTD_TOPIC(IrStd, Server), "Closing connection #" << m_index
 					<< " with socket " << socket);
 			m_manager.setStatus(m_index, ServerImpl::Status::TERMINATED);
 			closeSocket(socket);
@@ -199,7 +200,7 @@ void IrStd::Server<T>::process(const size_t index)
 		|| processStatus == ProcessStatus::CONTINUE_CURRENT_PACKET))
 	{
 		m_manager.setStatus(index, ServerImpl::Status::RECEIVING);
-		IRSTD_LOG_TRACE(IrStd::Topic::IrStdServer, "Incoming connection #" << index);
+		IRSTD_LOG_TRACE(IRSTD_TOPIC(IrStd, Server), "Incoming connection #" << index);
 
 		if (processStatus != ProcessStatus::CONTINUE_CURRENT_PACKET)
 		{
@@ -212,17 +213,17 @@ void IrStd::Server<T>::process(const size_t index)
 		}
 		catch (const Exception& e)
 		{
-			IRSTD_LOG_FATAL(IrStd::Topic::IrStdServer, "Error while receiving data on connection #"
-					<< index << " (" << clientInfo << "): " << e.what());
+			IRSTD_LOG_FATAL(IRSTD_TOPIC(IrStd, Server), "Error while receiving data on connection #"
+					<< index << " (" << clientInfo << "): " << e);
 			break;
 		}
 
 		if (isStarted())
 		{
 			m_manager.setStatus(index, ServerImpl::Status::RUNNING);
-			IRSTD_LOG_INFO(IrStd::Topic::IrStdServer, "Processing connection #" << index
+			IRSTD_LOG_INFO(IRSTD_TOPIC(IrStd, Server), "Processing connection #" << index
 					<< ", data=" << data.size() << ".byte(s) (" << m_manager.getClientInfo(index) << ")");
-			IRSTD_ASSERT(IrStd::Topic::IrStdServer, m_manager.getSocket(index) == socket,
+			IRSTD_ASSERT(IRSTD_TOPIC(IrStd, Server), m_manager.getSocket(index) == socket,
 					"The socket (" << m_manager.getSocket(index) << ") of connection #"
 					<< index << ", does not match its initial value (" << socket << ")");
 			processStatus = processImpl(socket, clientInfo, data);
@@ -231,8 +232,15 @@ void IrStd::Server<T>::process(const size_t index)
 
 	if (!isStarted())
 	{
-		IRSTD_LOG_INFO(IrStd::Topic::IrStdServer, "Aborting connection #" << index);
+		IRSTD_LOG_INFO(IRSTD_TOPIC(IrStd, Server), "Aborting connection #" << index);
 	}
+}
+
+
+template<class T>
+int IrStd::Server<T>::getPort() const noexcept
+{
+	return m_port;
 }
 
 template<class T>
@@ -262,22 +270,22 @@ void IrStd::Server<T>::waitUntilStopped(const uint64_t timeoutMs)
 template<class T>
 void IrStd::Server<T>::start()
 {
-	IRSTD_ASSERT(IrStd::Topic::IrStdServer, m_status == Status::IDLE,
+	IRSTD_ASSERT(IRSTD_TOPIC(IrStd, Server), m_status == Status::IDLE,
 			"Server is not idle (status=" << static_cast<int>(m_status) << ")");
 
 	auto sockFd = createSocket(nullptr, m_port, SocketLink::BIND);
 	if (::listen(sockFd, m_backLog) == -1)
 	{
 		closeSocket(sockFd);
-		IRSTD_THROW(IrStd::Topic::IrStdServer, "listen: code="
+		IRSTD_THROW(IRSTD_TOPIC(IrStd, Server), "listen: code="
 				<< errno << ", str=" << ::strerror(errno));
 	}
 
-	IRSTD_LOG_INFO(IrStd::Topic::IrStdServer, "Server started, waiting for connections on port " << m_port);
+	IRSTD_LOG_INFO(IRSTD_TOPIC(IrStd, Server), "Server started, waiting for connections on port " << m_port);
 
 	// Notifiy that the sterver is started
 	{
-		IRSTD_THROW_ASSERT(IrStd::Topic::IrStdServer, m_event.getCounter() == 0,
+		IRSTD_THROW_ASSERT(IRSTD_TOPIC(IrStd, Server), m_event.getCounter() == 0,
 				"Server is already started or in an unknown state (state=" << m_event.getCounter() << ")");
 		m_status = Status::STARTED;
 		m_event.trigger();
@@ -291,7 +299,7 @@ void IrStd::Server<T>::start()
 		const int clientFd = ::accept(sockFd, reinterpret_cast<struct ::sockaddr*>(&clientAddr), &sinSize);
 		if (clientFd == -1)
 		{
-			IRSTD_LOG_ERROR(IrStd::Topic::IrStdServer, "accept: code=" << errno << ", str=" << ::strerror(errno));
+			IRSTD_LOG_ERROR(IRSTD_TOPIC(IrStd, Server), "accept: code=" << errno << ", str=" << ::strerror(errno));
 			continue;
 		}
 
@@ -317,20 +325,25 @@ void IrStd::Server<T>::start()
 
 		// Fill in the client structure
 		{
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-align"
 			auto& info = m_manager.getClientInfo(index);
-			const static auto getInAddr = [](struct ::sockaddr* sa) -> void* {
+			const static auto getInAddr = [](::sockaddr* sa) -> void* {
 				if (sa->sa_family == AF_INET)
 				{
-					return &(((struct sockaddr_in*)sa)->sin_addr);
+					auto pSockaddr = reinterpret_cast<::sockaddr_in*>(sa);
+					return &(pSockaddr->sin_addr);
 				}
-				return &(((struct sockaddr_in6*)sa)->sin6_addr);
+				auto pSockaddr = reinterpret_cast<::sockaddr_in6*>(sa);
+				return &(pSockaddr->sin6_addr);
 			};
+#pragma GCC diagnostic pop
 			{
 				char ip[INET6_ADDRSTRLEN];
-				if (::inet_ntop(clientAddr.ss_family, getInAddr(reinterpret_cast<struct ::sockaddr*>(&clientAddr)),
+				if (::inet_ntop(clientAddr.ss_family, getInAddr(reinterpret_cast<::sockaddr*>(&clientAddr)),
 						ip, sizeof(ip)) == nullptr)
 				{
-					IRSTD_LOG_ERROR(IrStd::Topic::IrStdServer, "inet_ntop: code="
+					IRSTD_LOG_ERROR(IRSTD_TOPIC(IrStd, Server), "inet_ntop: code="
 							<< errno << ", str=" << ::strerror(errno));
 					continue;
 				}
@@ -348,15 +361,15 @@ void IrStd::Server<T>::start()
 
 	m_status = Status::STOPPED;
 	m_event.trigger();
-	IRSTD_LOG_INFO(IrStd::Topic::IrStdServer, "Server stopped on port " << m_port);
+	IRSTD_LOG_INFO(IRSTD_TOPIC(IrStd, Server), "Server stopped on port " << m_port);
 }
 
 template<class T>
 void IrStd::Server<T>::stop()
 {
-	IRSTD_ASSERT(IrStd::Topic::IrStdServer, isStarted(),
+	IRSTD_ASSERT(IRSTD_TOPIC(IrStd, Server), isStarted(),
 			"Server is not running (status=" << static_cast<int>(m_status) << ")");
-	IRSTD_LOG_TRACE(IrStd::Topic::IrStdServer, "Sending stop request to server on port "
+	IRSTD_LOG_TRACE(IRSTD_TOPIC(IrStd, Server), "Sending stop request to server on port "
 			<< m_port);
 	m_status = Status::STOPPING;
 	m_event.trigger();
@@ -364,12 +377,13 @@ void IrStd::Server<T>::stop()
 	try
 	{
 		auto sockFd = createSocket(nullptr, m_port, SocketLink::CONNECT);
+		IRSTD_THROW_ASSERT(IRSTD_TOPIC(IrStd, Server), sockFd >= 0, "Invalid socket");
 		closeSocket(sockFd);
 	}
 	catch (const IrStd::Exception& e)
 	{
-		IRSTD_LOG_ERROR(IrStd::Topic::IrStdServer, "Ignoring as a workaround: "
-				<< e.what());
+		IRSTD_LOG_ERROR(IRSTD_TOPIC(IrStd, Server), "Ignoring as a workaround: "
+				<< e);
 		// Todo: need to remove this
 	}
 }
@@ -427,7 +441,7 @@ int IrStd::Server<T>::createSocket(const char* const pHostName, const uint16_t p
 		int rv;
 		if ((rv = ::getaddrinfo(pHostName, Type::ShortString(port), &hints, &serverData.m_pServInfoList)) != 0)
 		{
-			IRSTD_THROW(IrStd::Topic::IrStdServer, "getaddrinfo(" << pHostName << ":" << port
+			IRSTD_THROW(IRSTD_TOPIC(IrStd, Server), "getaddrinfo(" << pHostName << ":" << port
 					<< "): code=" << rv << ", str=" << ::gai_strerror(rv));
 		}
 	}
@@ -439,7 +453,7 @@ int IrStd::Server<T>::createSocket(const char* const pHostName, const uint16_t p
 		if ((serverData.m_socket = ::socket(pServInfo->ai_family, pServInfo->ai_socktype,
 				pServInfo->ai_protocol)) == -1)
 		{
-			IRSTD_LOG_WARNING(IrStd::Topic::IrStdServer, "socket: code="
+			IRSTD_LOG_WARNING(IRSTD_TOPIC(IrStd, Server), "socket: code="
 					<< errno << ", str=" << ::strerror(errno));
 			continue;
 		}
@@ -450,7 +464,7 @@ int IrStd::Server<T>::createSocket(const char* const pHostName, const uint16_t p
 			if (::setsockopt(serverData.m_socket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1
 					|| yes != 1)
 			{
-				IRSTD_THROW(IrStd::Topic::IrStdServer, "setsockopt: code="
+				IRSTD_THROW(IRSTD_TOPIC(IrStd, Server), "setsockopt: code="
 						<< errno << ", str=" << ::strerror(errno));
 			}
 		}
@@ -463,7 +477,7 @@ int IrStd::Server<T>::createSocket(const char* const pHostName, const uint16_t p
 			if (::bind(serverData.m_socket, pServInfo->ai_addr, pServInfo->ai_addrlen) == -1)
 			{
 				isError = true;
-				IRSTD_LOG_ERROR(IrStd::Topic::IrStdServer, "Cannot bind to socket "
+				IRSTD_LOG_ERROR(IRSTD_TOPIC(IrStd, Server), "Cannot bind to socket "
 						<< serverData.m_socket << ", call=bind, code=" << errno
 						<< ", str=" << ::strerror(errno));
 			}
@@ -474,14 +488,14 @@ int IrStd::Server<T>::createSocket(const char* const pHostName, const uint16_t p
 			if (::connect(serverData.m_socket, pServInfo->ai_addr, pServInfo->ai_addrlen) == -1)
 			{
 				isError = true;
-			/*	IRSTD_LOG_ERROR(IrStd::Topic::IrStdServer, "Cannot connect to socket "
+			/*	IRSTD_LOG_ERROR(IRSTD_TOPIC(IrStd, Server), "Cannot connect to socket "
 						<< serverData.m_socket << ", call=connect, code=" << errno
 						<< ", str=" << ::strerror(errno));*/
 			}
 			break;
 
 		default:
-			IRSTD_UNREACHABLE(IrStd::Topic::IrStdServer);
+			IRSTD_UNREACHABLE(IRSTD_TOPIC(IrStd, Server));
 		}
 
 		if (isError)
@@ -499,8 +513,8 @@ int IrStd::Server<T>::createSocket(const char* const pHostName, const uint16_t p
 		return -1;
 	}
 
-	IRSTD_THROW_ASSERT(IrStd::Topic::IrStdServer, pServInfo, "Failed to bind/connect");
-	IRSTD_THROW_ASSERT(IrStd::Topic::IrStdServer, serverData.isValidSocket(),
+	IRSTD_THROW_ASSERT(IRSTD_TOPIC(IrStd, Server), pServInfo, "Failed to bind/connect");
+	IRSTD_THROW_ASSERT(IRSTD_TOPIC(IrStd, Server), serverData.isValidSocket(),
 			"Socket file descriptor is invalid");
 
 	return serverData.getSocket();
@@ -527,7 +541,7 @@ void IrStd::Server<T>::toStream(std::ostream& os) const
 		os << "STOPPED";
 		break;
 	default:
-		IRSTD_UNREACHABLE(IrStd::Topic::IrStdServer);
+		IRSTD_UNREACHABLE(IRSTD_TOPIC(IrStd, Server));
 	}
 	os << std::endl;
 	m_manager.toStream(os);

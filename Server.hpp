@@ -83,6 +83,11 @@ namespace IrStd
 		 */
 		size_t receiveSpecificAmount(const int socket, std::string& data, const size_t size);
 
+		/**
+		 * Get the port on which the server is binded
+		 */
+		int getPort() const noexcept;
+
 	protected:
 		enum class ProcessStatus
 		{

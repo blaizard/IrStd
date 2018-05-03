@@ -30,6 +30,8 @@ namespace IrStd
 			operator const char*() const noexcept;
 			void toStream(std::ostream& os) const;
 
+			const char* c_str() const noexcept;
+
 			// max unsigned int size of 64-bit is 20 characters + null
 			// max signed int size of 64-bit is 19 characters + sign + null
 			static constexpr size_t SIZE = 21;

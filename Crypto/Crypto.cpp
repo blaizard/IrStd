@@ -1,53 +1,84 @@
+#include <openssl/sha.h>
 #include <openssl/hmac.h>
 #include <cstring>
 
 #include "../Assert.hpp"
 #include "../Crypto.hpp"
 
-IrStd::Crypto::Crypto(const char* const pString)
-		: Crypto(reinterpret_cast<const uint8_t*>(pString), strlen(pString))
+namespace
 {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+	std::unique_ptr<IrStd::Type::Buffer> HelperHMAC(
+			const ::EVP_MD *md,
+			const size_t allocMem,
+			const char* const pKey,
+			const size_t length,
+			const uint8_t* const pData,
+			const size_t dataLength)
+	{
+		::HMAC_CTX ctx;
+		::HMAC_CTX_init(&ctx);
+
+		const int keyLength = static_cast<const int>((length) ? length : strlen(pKey));
+		auto pResult = std::unique_ptr<IrStd::Type::Buffer>(new IrStd::Type::Buffer(allocMem));
+		unsigned int resultLength;
+
+		::HMAC_Init_ex(&ctx, pKey, keyLength, md, nullptr);
+		::HMAC_Update(&ctx, pData, static_cast<int>(dataLength));
+		::HMAC_Final(&ctx, pResult->getForWrite<unsigned char>(), &resultLength);
+		::HMAC_CTX_cleanup(&ctx);
+
+		pResult->setSize(resultLength);
+
+		return std::move(pResult);
+	}
+#else
+	std::unique_ptr<IrStd::Type::Buffer> HelperHMAC(
+			const ::EVP_MD *md,
+			const size_t allocMem,
+			const char* const pKey,
+			const size_t length,
+			const uint8_t* const pData,
+			const size_t dataLength)
+	{
+		::HMAC_CTX* ctx;
+		ctx = ::HMAC_CTX_new();
+
+		const int keyLength = static_cast<const int>((length) ? length : strlen(pKey));
+		auto pResult = std::unique_ptr<IrStd::Type::Buffer>(new IrStd::Type::Buffer(allocMem));
+		unsigned int resultLength;
+
+		::HMAC_Init_ex(ctx, pKey, keyLength, md, nullptr);
+		::HMAC_Update(ctx, pData, static_cast<int>(dataLength));
+		::HMAC_Final(ctx, pResult->getForWrite<unsigned char>(), &resultLength);
+
+		::HMAC_CTX_free(ctx);
+
+		pResult->setSize(resultLength);
+
+		return std::move(pResult);
+	}
+#endif
 }
 
-IrStd::Crypto::Crypto(const uint8_t* const pData, const size_t length)
-		: m_pData(pData)
-		, m_length(length)
+std::unique_ptr<IrStd::Type::Buffer> IrStd::Crypto::HMACSHA1(const IrStd::Type::Buffer& key) const
 {
+	return std::move(::HelperHMAC(EVP_sha1(), 20, key.get<char>(), key.size(), m_buffer.get<uint8_t>(), m_buffer.size()));
 }
 
-static std::unique_ptr<IrStd::Data> HMAC(
-		const ::EVP_MD *md,
-		const size_t allocMem,
-		const char* const pKey,
-		const size_t length,
-		const uint8_t* const pData,
-		const size_t dataLength)
+std::unique_ptr<IrStd::Type::Buffer> IrStd::Crypto::HMACSHA512(const IrStd::Type::Buffer& key) const
 {
-	::HMAC_CTX ctx;
-	::HMAC_CTX_init(&ctx);
-
-	const int keyLength = static_cast<const int>((length) ? length : strlen(pKey));
-	::HMAC_Init(&ctx, pKey, keyLength, md);
-
-	::HMAC_Update(&ctx, pData, static_cast<int>(dataLength));
-
-	auto pResult = std::move(std::unique_ptr<IrStd::Data>(new IrStd::Data(allocMem)));
-
-	unsigned int resultLength;
-	HMAC_Final(&ctx, pResult->get(), &resultLength);
-	HMAC_CTX_cleanup(&ctx);
-
-	pResult->setLength(resultLength);
-
-	return std::move(pResult);
+	return std::move(::HelperHMAC(EVP_sha512(), 512 / 8, key.get<char>(), key.size(), m_buffer.get<uint8_t>(), m_buffer.size()));
 }
 
-std::unique_ptr<IrStd::Data> IrStd::Crypto::HMACSHA1(const char* const key, const size_t length)
+std::unique_ptr<IrStd::Type::Buffer> IrStd::Crypto::SHA256() const
 {
-	return std::move(HMAC(EVP_sha1(), 20, key, length, m_pData, m_length));
-}
+	auto pResult = std::unique_ptr<IrStd::Type::Buffer>(new IrStd::Type::Buffer(SHA256_DIGEST_LENGTH));
 
-std::unique_ptr<IrStd::Data> IrStd::Crypto::HMACSHA512(const char* const key, const size_t length)
-{
-	return std::move(HMAC(EVP_sha512(), 512 / 8, key, length, m_pData, m_length));
+	::SHA256_CTX ctx;
+    ::SHA256_Init(&ctx);
+    ::SHA256_Update(&ctx, m_buffer.get<uint8_t>(), m_buffer.size());
+    ::SHA256_Final(pResult->getForWrite<unsigned char>(), &ctx);
+
+	return std::move(pResult); 
 }

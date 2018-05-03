@@ -6,6 +6,7 @@
 #include <sys/time.h>
 #include <string.h>
 #include <set>
+#include <map>
 #include <sstream>
 #include <mutex>
 
@@ -13,17 +14,17 @@
 #include "Utils.hpp"
 #include "Topic.hpp"
 #include "Scope.hpp"
-#include "Type.hpp"
+#include "Type/Timestamp.hpp"
 
-IRSTD_TOPIC_USE(None);
+IRSTD_TOPIC_USE(IrStd, None);
 IRSTD_SCOPE_USE(IrStdMemoryNoTrace);
 
 /**
  * Supports the following arguments:
  * IRSTD_LOG("hello")
  * IRSTD_LOG(level, "hello")
- * IRSTD_LOG(level, IrStdMemoryNoTrace, "hello")
- * IRSTD_LOG(logger, level, IrStdMemoryNoTrace, "hello")
+ * IRSTD_LOG(level, IrStd, "hello")
+ * IRSTD_LOG(logger, level, IrStd, "hello")
  */
 #define IRSTD_LOG_TRACE(...) IRSTD_LOG(IrStd::Logger::Level::Trace, __VA_ARGS__)
 #define IRSTD_LOG_DEBUG(...) IRSTD_LOG(IrStd::Logger::Level::Debug, __VA_ARGS__)
@@ -106,6 +107,12 @@ namespace IrStd
 			Fatal = IRSTD_LOGGER_DEFINE_LEVEL(0x020, 'f', IRSTD_LOGGER_NON_MASKABLE)
 		};
 
+		inline static char levelToChar(Level level) noexcept
+		{
+			const uint32_t l = static_cast<uint32_t>(level);
+			return static_cast<const char>(l & 0xff);
+		}
+
 		struct Info
 		{
 			Info(const Level level, const TopicImpl& topic, const size_t line, const char* const file, const char* const func)
@@ -126,25 +133,10 @@ namespace IrStd
 		class Format
 		{
 		public:
-			virtual void header(std::ostream& out, const Info& info) const = 0;
-			virtual void body(std::ostream& out, const std::string& str) const = 0;
-			virtual void tail(std::ostream& out) const = 0;
-		};
+			typedef std::function<void(std::ostream&, const Info&, const std::string&)> Type;
 
-		class FormatRaw : public Format, public SingletonImpl<FormatRaw>
-		{
-		public:
-			void header(std::ostream& out, const Info& info) const;
-			void body(std::ostream& out, const std::string& str) const;
-			void tail(std::ostream& out) const;
-		};
-
-		class FormatDefault : public Format, public SingletonImpl<FormatDefault>
-		{
-		public:
-			void header(std::ostream& out, const Info& info) const;
-			void body(std::ostream& out, const std::string& str) const;
-			void tail(std::ostream& out) const;
+			static void standard(std::ostream&, const Info&, const std::string&);
+			static void raw(std::ostream&, const Info&, const std::string&);
 		};
 
 		/**
@@ -153,7 +145,7 @@ namespace IrStd
 		class Filter
 		{
 		public:
-			Filter(const Level minLevel = Level::Trace)
+			Filter(const Level minLevel = Level::Error)
 					: m_minLevel(minLevel)
 
 			{
@@ -186,13 +178,13 @@ namespace IrStd
 				m_topics.clear();
 			}
 
-			void addTopic(const TopicImpl& topic) noexcept
+			void addTopic(const TopicImpl& topic, const Level minLevel) noexcept
 			{
 				// Cannot print any logs as it make use of the logger which is locked
 				// as it is currenlty accessing the filter object
 				IRSTD_SCOPE(scope, IrStd::Flag::IrStdMemoryNoTrace);
 				std::lock_guard<std::mutex> lock(m_mutex);
-				m_topics.insert(topic.getRef());
+				m_topics.insert({topic.getRef(), minLevel});
 			}
 
 			bool isIgnored(const Level level, const TopicImpl& topic) noexcept
@@ -203,24 +195,46 @@ namespace IrStd
 				{
 					return false;
 				}
-				// Filter on level
-				if (m_minLevel > level)
-				{
-					return true;
-				}
+
 				// Filter on topics
+				if (!m_topics.empty())
 				{
-					std::lock_guard<std::mutex> lock(m_mutex);
-					if (!m_topics.empty() && m_topics.find(topic.getRef()) == m_topics.end())
+					const auto* pTopic = &topic;
+					while (pTopic)
 					{
-						return true;
+						std::lock_guard<std::mutex> lock(m_mutex);
+						{
+							const auto it = m_topics.find(pTopic->getRef());
+							if (it != m_topics.end())
+							{
+								if (it->second <= level)
+								{
+									return false;
+								}
+								return true;
+							}
+						}
+						pTopic = pTopic->getParent();
 					}
 				}
-				return false;
+
+				// Filter on level
+				if (level >= m_minLevel)
+				{
+					return false;
+				}
+
+				// If no topic are in the filter list, accept everything
+			//	if (m_topics.empty())
+			//	{
+			//		return false;
+			//	}
+
+				return true;
 			}
 		private:
 			Level m_minLevel;
-			std::set<TopicImpl::Ref> m_topics;
+			std::map<TopicImpl::Ref, Level> m_topics;
 			mutable std::mutex m_mutex;
 		};
 
@@ -233,29 +247,29 @@ namespace IrStd
 			 * Constructors
 			 */
 			Stream(std::ostream& os)
-					: Stream(os, &FormatDefault::getInstance())
+					: Stream(os, Format::standard)
 			{
 			}
-			Stream(std::ostream& os, const Format* const pFormat)
+			Stream(std::ostream& os, const Format::Type& format)
 					: m_os(os)
-					, m_pFormat(pFormat)
+					, m_format(format)
 					, m_hasFilter(false)
 			{
 			}
 			Stream(std::ostream& os, const Filter& filter)
-					: Stream(os, &FormatDefault::getInstance(), filter)
+					: Stream(os, Format::standard, filter)
 			{
 			}
-			Stream(std::ostream& os, const Format* const pFormat, const Filter& filter)
+			Stream(std::ostream& os, const Format::Type& format, const Filter& filter)
 					: m_os(os)
-					, m_pFormat(pFormat)
+					, m_format(format)
 					, m_filter(filter)
 					, m_hasFilter(true)
 			{
 			}
 
 			std::ostream& m_os;
-			const Format* const m_pFormat;
+			const Format::Type m_format;
 			Filter m_filter;
 			const bool m_hasFilter;
 		};
@@ -349,26 +363,26 @@ namespace IrStd
 		/**
 		 * Add a new topic to the filter list
 		 */
-		void addTopic(const TopicImpl& topic) noexcept;
+		void addTopic(const TopicImpl& topic, const Level minLevel = Level::Trace) noexcept;
 
 		OutputStreamPtr entry(const size_t line, const char* const file, const char* const func, const Level level, const TopicImpl& topic);
 
-		static bool isIgnoredStatic(Logger& logger, const Level level = IrStd::Logger::Level::Info, const TopicImpl& topic = IrStd::Topic::None) noexcept;
+		static bool isIgnoredStatic(Logger& logger, const Level level = IrStd::Logger::Level::Info, const TopicImpl& topic = IRSTD_TOPIC(IrStd, None)) noexcept;
 		static bool isIgnoredStatic(Logger& logger, const TopicImpl& topic, const Level level = IrStd::Logger::Level::Info) noexcept;
-		static bool isIgnoredStatic(const TopicImpl& topic = IrStd::Topic::None, const Level level = IrStd::Logger::Level::Info) noexcept;
-		static bool isIgnoredStatic(const Level level, const TopicImpl& topic = IrStd::Topic::None) noexcept;
-		static bool isIgnoredStatic(const Level level, Logger& logger, const TopicImpl& topic = IrStd::Topic::None) noexcept;
+		static bool isIgnoredStatic(const TopicImpl& topic = IRSTD_TOPIC(IrStd, None), const Level level = IrStd::Logger::Level::Info) noexcept;
+		static bool isIgnoredStatic(const Level level, const TopicImpl& topic = IRSTD_TOPIC(IrStd, None)) noexcept;
+		static bool isIgnoredStatic(const Level level, Logger& logger, const TopicImpl& topic = IRSTD_TOPIC(IrStd, None)) noexcept;
 
 		static OutputStreamPtr entryStatic(const size_t line, const char* const file, const char* const func, Logger& logger,
-				const Level level = IrStd::Logger::Level::Info, const TopicImpl& topic = IrStd::Topic::None);
+				const Level level = IrStd::Logger::Level::Info, const TopicImpl& topic = IRSTD_TOPIC(IrStd, None));
 		static OutputStreamPtr entryStatic(const size_t line, const char* const file, const char* const func, Logger& logger,
 				const TopicImpl& topic, const Level level = IrStd::Logger::Level::Info);
 		static OutputStreamPtr entryStatic(const size_t line, const char* const file, const char* const func,
-				const TopicImpl& topic = IrStd::Topic::None, const Level level = IrStd::Logger::Level::Info);
+				const TopicImpl& topic = IRSTD_TOPIC(IrStd, None), const Level level = IrStd::Logger::Level::Info);
 		static OutputStreamPtr entryStatic(const size_t line, const char* const file, const char* const func,
-				const Level level, const TopicImpl& topic = IrStd::Topic::None);
+				const Level level, const TopicImpl& topic = IRSTD_TOPIC(IrStd, None));
 		static OutputStreamPtr entryStatic(const size_t line, const char* const file, const char* const func,
-				const Level level, Logger& logger, const TopicImpl& topic = IrStd::Topic::None);
+				const Level level, Logger& logger, const TopicImpl& topic = IRSTD_TOPIC(IrStd, None));
 
 	private:
 		friend Bootstrap;

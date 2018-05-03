@@ -3,7 +3,8 @@
 
 #include "FetchCurl.hpp"
 
-IRSTD_TOPIC_REGISTER(IrStdFetch);
+IRSTD_TOPIC_REGISTER(IrStd, Fetch);
+IRSTD_TOPIC_USE_ALIAS(IrStdFetch, IrStd, Fetch);
 
 IrStd::Fetch::Fetch(std::string& data)
 		: m_data(data)
@@ -25,6 +26,11 @@ IrStd::FetchUrl::FetchUrl(
 		: Fetch(data)
 		, m_url(url)
 {
+}
+
+const std::string& IrStd::FetchUrl::getUrl() const noexcept
+{
+	return m_url;
 }
 
 std::future<IrStd::Fetch::Status> IrStd::FetchUrl::process()

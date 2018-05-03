@@ -1,5 +1,7 @@
 #include "ServerREST.hpp"
 
+IRSTD_TOPIC_USE_ALIAS(IrStdServer, IrStd, Server);
+
 // ---- IrStd::ServerREST::Context --------------------------------------------
 
 constexpr size_t IrStd::ServerREST::Context::MAX_MATCHES; 
@@ -28,30 +30,21 @@ void IrStd::ServerREST::Context::addMatch(const size_t begin, const size_t end, 
 	m_nbMatches++;
 }
 
-int64_t IrStd::ServerREST::Context::getMatchAsInteger(const size_t index) const
+int64_t IrStd::ServerREST::Context::getMatchAsInt(const size_t index) const
 {
 	const std::string str = getMatchAsString(index);
-	int integer;
+	return Type::Numeric<int64_t>::fromString(str.c_str());
+}
 
-	try
-	{
-		size_t endIndex;
-		integer = std::stoi(str, &endIndex);
-		IRSTD_THROW_ASSERT(endIndex == str.size(),
-				"Not all the match converted into an integer: str=\"" << str
-				<< "\" -> integer=" << integer);
-	}
-	catch (...)
-	{
-		IrStd::Exception::rethrow();	
-	}
-
-	return integer;
+uint64_t IrStd::ServerREST::Context::getMatchAsUInt(const size_t index) const
+{
+	const std::string str = getMatchAsString(index);
+	return Type::Numeric<uint64_t>::fromString(str.c_str());
 }
 
 std::string IrStd::ServerREST::Context::getMatchAsString(const size_t index) const
 {
-	IRSTD_THROW_ASSERT(index < m_nbMatches, "Index (" << index
+	IRSTD_THROW_ASSERT(IrStdServer, index < m_nbMatches, "Index (" << index
 			<< ") is out of bound (nbMatches=" << m_nbMatches << ")");
 	const std::string& uri = getRequest().getURI();
 	const auto& match = m_matchList[index];
@@ -68,14 +61,18 @@ size_t IrStd::ServerREST::Context::getNbMatches() const noexcept
 void IrStd::ServerREST::dump(std::ostream& os)
 {
 	os << *this;
-	os << "Routing map:" << std::endl;
-	m_node.dump(os, /*intialLevel*/1);
+	for (size_t i=0; i<m_nodeList.size(); i++)
+	{
+		os << "Routing map (" << i << "):" << std::endl;
+		m_nodeList[i].dump(os, /*intialLevel*/1);
+	}
 }
 
 void IrStd::ServerREST::handleResponse(IrStd::ServerHTTP::Context& context)
 {
 	const std::string& uri = context.getRequest().getURI();
-	const Node* pNode = &m_node;
+	const auto method = context.getRequest().getMethod();
+	const Node* pNode = &m_nodeList[static_cast<size_t>(method)];
 	size_t index = 0;
 	Context contextREST(context);
 
@@ -101,17 +98,24 @@ void IrStd::ServerREST::handleResponse(IrStd::ServerHTTP::Context& context)
 	}
 	else
 	{
-		context.getResponse().setStatus(404);
+		routeNotFound(context);
 	}
 }
 
-void IrStd::ServerREST::addRoute(const std::string uri, Callback callback)
+void IrStd::ServerREST::routeNotFound(IrStd::ServerHTTP::Context& context)
+{
+	context.getResponse().setStatus(404);
+}
+
+void IrStd::ServerREST::addRoute(const HTTPMethod method, const std::string uri, Callback callback)
 {
 	IRSTD_ASSERT(!isStarted(), "Cannot add routes when the server is running");
+	IRSTD_ASSERT(static_cast<size_t>(method) < m_nodeList.size(), "Method is out of bound, got "
+			<< static_cast<int>(method));
 
 	size_t index = 0;
 	size_t nbCapture = 0;
-	Node* pNode = &m_node;
+	Node* pNode = &m_nodeList[static_cast<size_t>(method)];
 
 	// Consume the whole URI
 	while (index < uri.size())
@@ -136,20 +140,24 @@ void IrStd::ServerREST::addRoute(const std::string uri, Callback callback)
 		index = pos + 1;
 
 		const auto pos2 = uri.find('}', index);
-		IRSTD_ASSERT(pos2 != std::string::npos, "Incomplete capture preset starting at index "
+		IRSTD_ASSERT(IrStdServer, pos2 != std::string::npos, "Incomplete capture preset starting at index "
 				<< pos << " of \"" << uri << "\"");
 		const auto preset = uri.substr(index, pos2 - index);
 
 		// Make sure there is enough capture preset
 		{
-			IRSTD_ASSERT(nbCapture < Context::MAX_MATCHES, "Too many capture for this URI ("
+			IRSTD_ASSERT(IrStdServer, nbCapture < Context::MAX_MATCHES, "Too many capture for this URI ("
 					<< __FUNCTION__ << "), max=" << Context::MAX_MATCHES)
 			nbCapture++;
 		}
 
-		if (preset == "INTEGER")
+		if (preset == "INT")
 		{
-			pNode = pNode->add(Capture::INTEGER);
+			pNode = pNode->add(Capture::INT);
+		}
+		else if (preset == "UINT")
+		{
+			pNode = pNode->add(Capture::UINT);
 		}
 		else if (preset == "STRING")
 		{
@@ -157,14 +165,14 @@ void IrStd::ServerREST::addRoute(const std::string uri, Callback callback)
 		}
 		else
 		{
-			IRSTD_CRASH("Unknown capture preset \"" << preset << "\" from \"" << uri << "\"");
+			IRSTD_CRASH(IrStdServer, "Unknown capture preset \"" << preset << "\" from \"" << uri << "\"");
 		}
 
 		// Update the index
 		index = pos2 + 1;
 	}
 
-	IRSTD_ASSERT(index == uri.size(), "The URI (" << uri << ") was not fully consumed");
+	IRSTD_ASSERT(IrStdServer, index == uri.size(), "The URI (" << uri << ") was not fully consumed");
 
 	// Save the callback
 	pNode->add(ParamType(callback));
@@ -226,7 +234,7 @@ bool IrStd::ServerREST::ParamType::operator==(const ParamType& other) const
 	case DataType::STRING:
 		return std::strcmp(m_data.m_pStr, other.m_data.m_pStr) == 0;
 	default:
-		IRSTD_UNREACHABLE();
+		IRSTD_UNREACHABLE(IrStdServer);
 	}
 }
 
@@ -247,7 +255,7 @@ void IrStd::ServerREST::ParamType::toStream(std::ostream& os) const
 		os << "String (" << m_data.m_pStr << ")";
 		break;
 	default:
-		IRSTD_UNREACHABLE();
+		IRSTD_UNREACHABLE(IrStdServer);
 	}
 }
 
@@ -286,7 +294,7 @@ IrStd::ServerREST::Node* IrStd::ServerREST::Node::add(const ParamType& key)
 				pair.second = std::unique_ptr<Node>(new Node());
 			}
 			const auto it2 = m_map.insert(std::move(pair));
-			IRSTD_THROW_ASSERT(it2.second, "Cannot insert the key into the map");
+			IRSTD_THROW_ASSERT(IrStdServer, it2.second, "Cannot insert the key into the map");
 			pNode = it2.first->second.get();
 		}
 	}
@@ -351,7 +359,7 @@ std::pair<const size_t, const IrStd::ServerREST::Node*> IrStd::ServerREST::Node:
 		const size_t index,
 		Capture& capture) const
 {
-	IRSTD_ASSERT(index < str.size());
+	IRSTD_ASSERT(IrStdServer, index < str.size(), "index=" << index << ", str.size=" << str.size());
 
 	// Look if the character is registered
 	{
@@ -363,10 +371,10 @@ std::pair<const size_t, const IrStd::ServerREST::Node*> IrStd::ServerREST::Node:
 		}
 	}
 
-	// Look for INTEGER capture preset
+	// Look for INT capture preset
 	{
 		bool isValid = false;
-		static const auto paramNumber(Capture::INTEGER);
+		static const auto paramNumber(Capture::INT);
 		const auto it = m_map.find(paramNumber);
 		if (it != m_map.end())
 		{
@@ -376,7 +384,7 @@ std::pair<const size_t, const IrStd::ServerREST::Node*> IrStd::ServerREST::Node:
 			{
 				endIndex++;
 			}
-			// Must be number with or without coma
+			// Must be number without coma
 			while (endIndex < str.size()
 					&& (str.at(endIndex) >= '0' && str.at(endIndex) <= '9'))
 			{
@@ -386,8 +394,33 @@ std::pair<const size_t, const IrStd::ServerREST::Node*> IrStd::ServerREST::Node:
 			// If an integer has been found
 			if (isValid)
 			{
-				IRSTD_ASSERT(index < endIndex);
-				capture = Capture::INTEGER;
+				IRSTD_ASSERT(IrStdServer, index < endIndex, "index=" << index << ", endIndex=" << endIndex);
+				capture = Capture::INT;
+				return {endIndex, it->second.get()};
+			}
+		}
+	}
+
+	// Look for UINT capture preset
+	{
+		bool isValid = false;
+		static const auto paramNumber(Capture::UINT);
+		const auto it = m_map.find(paramNumber);
+		if (it != m_map.end())
+		{
+			size_t endIndex = index;
+			// Must be number without coma
+			while (endIndex < str.size()
+					&& (str.at(endIndex) >= '0' && str.at(endIndex) <= '9'))
+			{
+				isValid = true;
+				endIndex++;
+			}
+			// If an integer has been found
+			if (isValid)
+			{
+				IRSTD_ASSERT(IrStdServer, index < endIndex, "index=" << index << ", endIndex=" << endIndex);
+				capture = Capture::UINT;
 				return {endIndex, it->second.get()};
 			}
 		}
@@ -401,7 +434,7 @@ std::pair<const size_t, const IrStd::ServerREST::Node*> IrStd::ServerREST::Node:
 		{
 			// Load the next map (there must be one)
 			const auto pNode = it->second.get();
-			IRSTD_ASSERT(pNode, "Next node after a STRING cannot be empty");
+			IRSTD_ASSERT(IrStdServer, pNode, "Next node after a STRING cannot be empty");
 			size_t endIndex = index;
 
 			do

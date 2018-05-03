@@ -1,8 +1,12 @@
-## C++ Framework
+## Generic C++ Framework
 
 [![Build Status](https://travis-ci.org/blaizard/IrStd.svg?branch=master)](https://travis-ci.org/blaizard/IrStd)
 
 IrStd adds few usefull thread-friendly features to the standard library.
+
+C++ framework taking advantage of C++11 features and adding useful functionanlities for 
+application developpment such as a flexible logger, a built-in REST API server, memory allocation
+monitoring, stack traces and much more.
 
 ## Features
 
@@ -11,18 +15,6 @@ IrStd adds few usefull thread-friendly features to the standard library.
 * Memory
 * Scope
 
-## Macro
+## Documentation
 
-Adds usefull macros to the framework.
-
-## Logger
-
-Adds a flexible logging feature with levels and topics. Logging can be distributed uppon different stream and filtered independently.
-
-## Memory
-
-Adds functions to manage and monitor memory usage.
-
-## Scope
-
-Creates global, local and thread locals scopes.
+See [documentation](docs/index.md)

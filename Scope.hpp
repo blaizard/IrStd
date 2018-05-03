@@ -116,7 +116,6 @@
 #define IRSTD_SCOPE_THREAD(scope) _IRSTD_SCOPE(IrStd::FlagBool, static thread_local, scope)
 #define IRSTD_SCOPE_LOCK_THREAD(scope) _IRSTD_SCOPE(IrStd::FlagLock, static thread_local, scope)
 
-
 #define _IRSTD_SCOPE(type, attr, scope) \
 	attr type scopeFlag; \
 	IrStd::Scope scope(&scopeFlag);

@@ -33,7 +33,7 @@ namespace IrStd
 		 * \brief Generates a random number from min to max (inclusive)
 		 */
 		template<class T>
-		T getNumber(const T min = std::numeric_limits<int>::min(), const T max = std::numeric_limits<int>::max()) noexcept
+		T getNumber(const T min = std::numeric_limits<T>::min(), const T max = std::numeric_limits<T>::max()) noexcept
 		{
 			std::uniform_int_distribution<T> distribution(min, max);
 			return distribution(m_gen);
@@ -43,11 +43,11 @@ namespace IrStd
 		 * \brief Get a random item from an object
 		 */
 		template<class T>
-		T& getVectorItem(std::vector<T>& vector)
+		typename T::value_type& getArrayItem(T& array)
 		{
-			IRSTD_ASSERT(vector.size() > 0);
-			const auto idx = getNumber<size_t>(0, vector.size() - 1);
-			return vector.at(idx);
+			IRSTD_ASSERT(array.size() > 0);
+			const auto idx = getNumber<size_t>(0, array.size() - 1);
+			return array.at(idx);
 		}
 
 	private:
@@ -56,4 +56,10 @@ namespace IrStd
 		Generator m_gen;
 		Seed m_seed;
 	};
+
+	// Specialization
+	template<>
+	float Rand::getNumber<float>(const float min, const float max) noexcept;
+	template<>
+	double Rand::getNumber<double>(const double min, const double max) noexcept;
 }

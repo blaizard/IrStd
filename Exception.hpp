@@ -7,6 +7,9 @@
 #include "Utils.hpp"
 #include "Assert.hpp"
 
+IRSTD_TOPIC_USE(IrStd, Exception);
+IRSTD_TOPIC_USE(IrStd, None);
+
 #define IRSTD_THROW(...) IRSTD_GET_MACRO(_IRSTD_THROW, __VA_ARGS__)(__VA_ARGS__)
 
 #define IRSTD_THROW_RETRY(...) IRSTD_GET_MACRO(_IRSTD_THROW, true, __VA_ARGS__)(true, __VA_ARGS__)
@@ -39,17 +42,16 @@
 		} \
 		catch (const IrStd::Exception& e) \
 		{ \
+			IRSTD_LOG_DEBUG(IRSTD_TOPIC(IrStd, Exception), "Exception trace: " << e.trace()); \
 			if (!e.isAllowRetry() || _retryCounter == (counter) + 1) \
 			{ \
 				IrStd::Exception::rethrow(); \
 			} \
-			IRSTD_LOG_TRACE("Exception: " << e.what() << ", retrying... (" \
+			IRSTD_LOG_TRACE(IRSTD_TOPIC(IrStd, Exception), "Exception: " << e << ", retrying... (" \
 					<< _retryCounter << " out of " #counter ")"); \
 			continue; \
 		} \
 	}
-
-IRSTD_TOPIC_USE(None);
 
 namespace IrStd
 {
@@ -57,13 +59,13 @@ namespace IrStd
 	class Exception : public std::exception
 	{
 	public:
-		Exception(const size_t line, const char* const file, const char* const func, const IrStd::TopicImpl& topic = IrStd::Topic::None);
-		Exception(const size_t line, const char* const file, const char* const func, const bool allowRetry, const IrStd::TopicImpl& topic = IrStd::Topic::None);
+		Exception(const size_t line, const char* const file, const char* const func, const IrStd::TopicImpl& topic = IRSTD_TOPIC(IrStd, None));
+		Exception(const size_t line, const char* const file, const char* const func, const bool allowRetry, const IrStd::TopicImpl& topic = IRSTD_TOPIC(IrStd, None));
 
 		/**
-		 * Move constructor
+		 * Copy constructor
 		 */
-		Exception(const Exception&& e);
+		Exception(const Exception& e);
 
 		/**
 		 * \brief Returns an explanatory string 
@@ -89,6 +91,11 @@ namespace IrStd
 		 * Check if the exception is allowing retries
 		 */
 		bool isAllowRetry() const noexcept;
+
+		/**
+		 * \brief Print the exception or the chainned exception
+		 */
+		void toStream(std::ostream& out) const noexcept;
 
 		/**
 		 * Get the next chained exception (if any).
@@ -125,7 +132,8 @@ namespace IrStd
 		static void rethrowRetry();
 
 	private:
-		static void demangle(std::ostream& out, const char* const symbol);
+		static bool demangle(char* pBuffer, const size_t size, const char* const pSymbol) noexcept;
+		static bool addressToFileInfo(char* pBuffer, const size_t size, const void* address, const char* executablePath = nullptr) noexcept;
 
 		const size_t m_line;
 		const char* const m_file;
@@ -160,6 +168,8 @@ namespace IrStd
 
 		operator int() const;
 
+		void toStream(std::ostream& out) const noexcept;
+
 		const std::exception& operator*() const;
 		const std::exception* operator->() const;
 
@@ -168,3 +178,6 @@ namespace IrStd
 		const std::exception* const m_pStd;
 	};
 }
+
+std::ostream& operator<<(std::ostream& os, const IrStd::Exception& e);
+std::ostream& operator<<(std::ostream& os, const std::exception& e);
